@@ -1,0 +1,22 @@
+1. The Method of Compilation
+Just type 'make'.
+$ make
+
+2. The Method of Execution
+After compilation, type './20141570.out'
+$ ./20141570.out
+
+In shell,
+   you can type these command
+	- h[elp]
+	- d[ir]
+	- q[uit]
+	- hi[story]
+	- du[mp] [start, end]
+	- e[dit] address, value
+	- f[ill] start, end, value
+	- reset
+	- opcode mnemonic
+	- opcodelist
+
+	If you do not type as the form suggested, this shell does not execute the command you want and prints the error message.
