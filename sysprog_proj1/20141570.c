@@ -49,6 +49,11 @@ int main () {
 
 		/** get command name **/
 		while (input_str[idx_input_str] == ' ') { idx_input_str ++; } /* ignore front space */
+		
+		// input consists of space, enter
+		if (!input_str[idx_input_str]) {
+			continue;
+		}
 
 		idx_argv = 0;
 		while ((input_str[idx_input_str] != ' ') && (input_str[idx_input_str] != 0)) {
@@ -72,7 +77,7 @@ int main () {
 				error_flag = error_check_comma(i, comma_flag);
 
 				idx_argv = 0;
-				while ((input_str[idx_input_str] != ' ') && (input_str[idx_input_str] != 0) && (input_str[idx_input_str] != ',')) { // except 0(end of string), ",", space
+				while (input_str[idx_input_str] != ' ' && (input_str[idx_input_str] != 0) && (input_str[idx_input_str] != ',') && input_str[idx_input_str] != '\n') { // except 0(end of string), ",", space
 					argv[i][idx_argv++] = input_str[idx_input_str++];
 				}
 				argv[i][idx_argv] = 0;
@@ -133,26 +138,26 @@ int main () {
 			int start = strtoi(argv[0], &error_flag),
 				end = strtoi(argv[1], &error_flag);
 
-			// params don't exist
-			if (!argv[0][0]) {
-				start = -1;
-			}
-			else if (!argv[1][0]) {
-				end = -1;
-			}
-
 			/* error handling */
 			if (error_flag) { // does not integer
 				SEND_ERROR_MESSEGE("NOT INTEGER");
 				continue;
 			}
-			if ((start < 0) || (end < 0) ||  (start > end) || end > 0xFFFFF) { // boundary error
+			if ((start < 0) || (end < 0) || (start > 0xFFFFF) || (argv[1][0] && (start > end)) || start > 0xFFFFF || end > 0xFFFFF) { // boundary error
 				SEND_ERROR_MESSEGE("BOUNDARY ERROR");
 				continue;
 			}
 			if (argv[2][0]) { // argv[2] exists
 				SEND_ERROR_MESSEGE("FORMAT DOES NOT MATCH THIS COMMAND");
 				continue;
+			}
+
+			// params don't exist
+			if (!argv[0][0]) {
+				start = -1;
+			}
+			else if (!argv[1][0]) {
+				end = -1;
 			}
 
 			command_dump(start, end);
@@ -188,7 +193,7 @@ int main () {
 				SEND_ERROR_MESSEGE("NOT INTEGER");
 				continue;
 			}
-			if ((start < 0) || (end < 0) || (argv[0][0] && (start > end || end > 0xFFFFF))|| val < 0 || val > 0xFF) { // boundary error
+			if ((start < 0) || (end < 0) || (start > 0xFFFFF)|| (argv[1][0] && (start > end))  || end > 0xFFFFF || val < 0 || val > 0xFF) { // boundary error
 				SEND_ERROR_MESSEGE("BOUNDARY ERROR");
 				continue;
 			}
@@ -243,7 +248,6 @@ int main () {
 		tmp_hist = history_head;
 		while (tmp_hist->next) { tmp_hist = tmp_hist->next; }
 		tmp_hist->next = new_hist_elem;
-
 		if (!strcmp(command, "history") || !strcmp(command, "hi")) {
 			command_history();
 		}

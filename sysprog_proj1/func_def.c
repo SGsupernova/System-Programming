@@ -13,16 +13,16 @@ void memory_print(int start_addr, int end_addr) {
 
 	int st_addr_column = start_addr/16,
 		end_addr_column = end_addr/16 + 1, // <= end_addr_column + 1
-		front_addr_column = start_addr - start_addr % 16, // point current line(column)
+		current_addr_column = start_addr - start_addr % 16, // point current line(column)
 		tmp;
 
-	for (i = st_addr_column; i < end_addr_column; i++, front_addr_column += 16) {
-		printf("%05x " , front_addr_column); // left column(ADDRESS)
+	for (i = st_addr_column; i < end_addr_column; i++, current_addr_column += 16) {
+		printf("%05x " , current_addr_column); // left column(ADDRESS)
 
 		/* print each memory */
 		for (j = 0; j < 16; j ++) {
-			if (start_addr <= front_addr_column + j && front_addr_column + j <= end_addr) {
-				printf(" %02X", memory[front_addr_column + j]);
+			if (start_addr <= current_addr_column + j && current_addr_column + j <= end_addr) {
+				printf(" %02X", memory[current_addr_column + j]);
 			}
 			else {
 				printf("   ");
@@ -34,7 +34,7 @@ void memory_print(int start_addr, int end_addr) {
 
 		/* print ASCII column */
 		for (j = 0; j < 16; j++) {
-			tmp = front_addr_column + j;
+			tmp = current_addr_column + j;
 			if (!(start_addr <= tmp && tmp <= end_addr) || 
 					(memory[tmp] < 0x20 || 0x7E < memory[tmp])) {
 				printf(".");
@@ -201,9 +201,14 @@ void command_opcodelist(void) {
 }
 
 
-// TODO : change hash function
 int hash_func(const char * mnemonic) {
-	return (mnemonic[0] - 'A') % 20;
+	int i = 0,sum = 0;
+	int len=strlen(mnemonic);
+	for(; i< len; i++)
+	{
+		sum += mnemonic[i];
+	}
+	return sum%20;
 }
 
 
@@ -255,23 +260,29 @@ int strtoi(const char * str, int* error_flag) {
 	else if (str[0] == '0' && (str[1] == 'x' || str[1] == 'X')) {
 		i += 2;
 	}
+
+	// string to integer
 	for (; str[i] != 0; i++) {
 		if ('0' <= str[i] && str[i] <= '9') {
 			res = res * 16 + str[i] - '0';
 		}
 		else if ('A' <= str[i] && str[i] <= 'F') {
-			res = res * 16 + str[i] - 55;
+			res = res * 16 + str[i] - 'A' + 10;
+		}
+		else if ('a' <= str[i] && str[i] <= 'f') {
+			res = res * 16 + str[i] - 'a' + 10;
 		}
 		// error case
 		else {
 			*error_flag = 1;
 			return -1;
 		}
+
 		if (res >= 0x100000) {
 			res = 0x100000;
 		}
 	}
-	
+
 	return minus_flag * res;
 }
 
@@ -298,9 +309,10 @@ int error_check_comma (int i, int comma_flag) {
 int error_check_moreargv (const char * input_str, int idx_input_str) {
 	while (input_str[idx_input_str] != 0) {
 		/* error case : command and argv are overfull*/
-		if (!(input_str[idx_input_str++] == ' ')) {
+		if (!(input_str[idx_input_str] == ' ') || !(input_str[idx_input_str] == '\n')) {
 			return 1;
 		}
+		idx_input_str++;
 	}
 	return 0;
 }
@@ -323,7 +335,7 @@ void deallocate_history (void) {
 void deallocate_opcode (void) {
 	int i;
 	op_list * op_trace = NULL,
-			  * op_tmp = NULL;
+			* op_tmp = NULL;
 	for (i = 0; i < 20; i++) {
 		op_trace = table_head[i];
 		while (op_trace) {

@@ -4,7 +4,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 
-#define MAX_LEN_INPUT 81
+#define MAX_LEN_INPUT 100
 #define MAX_LEN_COMMAND 10
 #define NUM_OF_OPCODES 58
 #define LEN_MNEMONIC 6
@@ -14,7 +14,7 @@
 
 typedef struct _HIST{
 	struct _HIST * next;
-	char command_line[MAX_LEN_COMMAND];
+	char command_line[MAX_LEN_INPUT];
 }hist_list;
 
 typedef struct _HASH_LINK{
