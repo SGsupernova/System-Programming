@@ -13,6 +13,7 @@
 #define ADDR_BOUNDARY(addr) ((addr) < 0x100000 ? (addr) : 0xFFFFF)
 #define INTERMEDIATE_FILENAME "inter.asm"
 
+// TODO : global variable 묶기
 typedef struct _HIST{
 	struct _HIST * next;
 	char command_line[MAX_LEN_INPUT];
@@ -21,9 +22,24 @@ typedef struct _HIST{
 typedef struct _HASH_LINK{
 	struct _HASH_LINK * next;
 	int opcode;
+	int format;
 	char mnemonic[LEN_MNEMONIC];
 }op_list;
 
+typedef struct _SYMBOL_TABLE {
+	struct _SYMBOL_TABLE * next;
+	int LOCCTR;
+	char * label;
+} SYMTAB;
+
+typedef struct _OPTAB {
+	int opcode;
+	int format;
+	char mnemonic[LEN_MNEMONIC];
+} OPTAB;
+
+OPTAB opcode_table[NUM_OF_OPCODES];
+SYMTAB *symbol_table;
 op_list *table_head[20];
 hist_list *history_head;
 unsigned char memory[MEMORY_SIZE]; // 2^20
@@ -43,7 +59,7 @@ void command_type(const char * filename, int * error_flag);
 void command_symbol(void);
 
 int hash_func(const char * mnemonic);
-void make_linking_table(op_list ** table_addr, int opcode, const char * mnemonic);
+void make_linking_table(op_list ** table_addr, int opcode, const char * mnemonic, int format);
 int opcode_mnem(op_list * table, const char *mnemonic);
 
 int strtoi(const char * str, int* error_flag);

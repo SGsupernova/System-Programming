@@ -260,7 +260,7 @@ void command_symbol(void) {
 
 int assemblePass1(FILE * fpOrigin) {
 	FILE * fpInter = fopen(INTERMEDIATE_FILENAME, "w");
-	int error_flag = 0, operand = 0, LOCCTR = 0;
+	int operand = 0, LOCCTR = 0;
 	char fileInputStr[150],
 		 *mnemonic = NULL, *symbol = NULL,
 		 exceptCommentStr[150] = {0,};
@@ -285,11 +285,21 @@ int assemblePass1(FILE * fpOrigin) {
 	while (mnemonic == NULL || strcmp(mnemonic, "END")) {
 		if (fileInputStr[0] != '.')	 { // This is not a comment line.
 			fetch_mnem_from_str(fileInputStr, &mnemonic, &symbol);
-
-			if (opcode_mnem(table_head[hash_func(mnemonic)], mnemonic) != -1) { // OPCODE FOUND
 			
-			
+			// TODO : make a function searching SYMTAB
+			// search SYMTAB for LABEL & there is same LABEL
+			if (searchSYMTAB()) {
+				return 1; // error
 			}
+			else {
+				insert2SYMTAB(symbol, LOCCTR);
+			}
+
+			// search OPTAB for OPCODE
+			if (opcode_mnem(table_head[hash_func(mnemonic)], mnemonic) != -1) { // OPCODE FOUND
+				table_head[hash_func]
+			}
+			else if ()
 		}
 	
 	}
@@ -345,11 +355,10 @@ int hash_func(const char * mnemonic) {
 }
 
 
-void make_linking_table(op_list ** table_addr, int opcode, const char * mnemonic) {
+void make_linking_table(op_list ** table_addr, int opcode, const char * mnemonic, int foramt) {
 	op_list * new_op = *table_addr;
 
 	while (new_op->next) 
-	
 	{
 		new_op = new_op->next;
 	}
@@ -357,15 +366,34 @@ void make_linking_table(op_list ** table_addr, int opcode, const char * mnemonic
 	/* allocate a element of op_list-struct, store opcode and mnemonic and link to head */
 	new_op->next = (op_list*) calloc(1, sizeof(op_list));
 	new_op->next->opcode = opcode;
+	new_op->next->format = format;
 	strcpy(new_op->next->mnemonic, mnemonic);
 	new_op->next->next = NULL;
 }
 
 
+// TODO : foramt_mnem 과 opcode_mnem을 합치는 작업 필요
 /* description : convert mnemonic to opcode.
  * return : opcode number , (error - there is no matching mnemonic) : -1
  * */
 int opcode_mnem(op_list * table, const char *mnemonic) {
+	table = table->next;
+	if (!mnemonic) { // error
+		return -1;
+	}
+	while (table) {
+		if (!strcmp(table->mnemonic, mnemonic)) {
+			break;
+		}
+		table = table->next;
+	}
+	if (!table) { // error : there is no matching mnemonic
+		return -1;
+	}
+	return table->opcode;
+}
+
+int format_mnem(op_list * table, const char *mnemonic) {
 	table = table->next;
 	if (!mnemonic) { // error
 		return -1;

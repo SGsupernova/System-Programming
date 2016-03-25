@@ -23,7 +23,11 @@ int main () {
 	i = NUM_OF_OPCODES;
 	while (i--) {
 		fscanf(fp, "%02x %s %s\n", &opcode, mnemonic, trash);
-		make_linking_table(&table_head[hash_func(mnemonic)], opcode, mnemonic);
+		// TODO : opcode table에서 linking 시켜 op_list 를 굳이 새로 만들지 않게 할 것 && 이 부분도 함수로 moduling 할 것 && trash -> format && mnemonic 바로 받는 것도 생각해 보기
+		make_linking_table(&table_head[hash_func(mnemonic)], opcode, mnemonic, trash);
+		opcode_table[i - 1].opcode = opcode;
+		opcode_table[i - 1].format = trash;
+		opcode_table[i - 1].mnemonic = strdup(mnemonic);
 	}
 
 
@@ -240,6 +244,11 @@ int main () {
 				SEND_ERROR_MESSAGE("FORMAT DOES NOT MATCH THIS COMMAND");
 				continue;
 			}
+			// TODO : Make a function deallocating a symbol_table
+			if (!symbol_table) {
+				// free symbol_table
+			}
+			symbol_table = (SYMTAB *) calloc(1, sizeof(SYMTAB));
 			command_type(argv[0], &error_flag);
 
 			if (error_flag) {
