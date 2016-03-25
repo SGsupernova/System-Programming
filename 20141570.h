@@ -61,6 +61,8 @@ void command_symbol(void);
 int hash_func(const char * mnemonic);
 void make_linking_table(op_list ** table_addr, int opcode, const char * mnemonic, int format);
 int opcode_mnem(op_list * table, const char *mnemonic);
+int format_mnem(op_list * table, const char *mnemonic);
+
 
 int strtoi(const char * str, int* error_flag);
 

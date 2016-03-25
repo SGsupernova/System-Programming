@@ -260,7 +260,7 @@ void command_symbol(void) {
 
 int assemblePass1(FILE * fpOrigin) {
 	FILE * fpInter = fopen(INTERMEDIATE_FILENAME, "w");
-	int operand = 0, LOCCTR = 0;
+	int operand = 0, LOCCTR = 0, foramt = 0;
 	char fileInputStr[150],
 		 *mnemonic = NULL, *symbol = NULL,
 		 exceptCommentStr[150] = {0,};
@@ -272,6 +272,7 @@ int assemblePass1(FILE * fpOrigin) {
 
 	// if OPCODE = 'START'
 	if (!strcmp(mnemonic, "START")) {
+		// TODO : 이 부분 fetch 함수를 이용하기, fetch 함수 내용 수정
 		sscanf(fileInputStr, "%*s %d", &operand);
 		LOCCTR = operand;
 		sscanf(fileInputStr, "%s.%*s", exceptCommentStr);
@@ -296,13 +297,38 @@ int assemblePass1(FILE * fpOrigin) {
 			}
 
 			// search OPTAB for OPCODE
-			if (opcode_mnem(table_head[hash_func(mnemonic)], mnemonic) != -1) { // OPCODE FOUND
-				table_head[hash_func]
+			if ((format = format_mnem(table_head[hash_func(mnemonic)], mnemonic)) != -1) { // OPCODE FOUND
+				LOCCTR += format;
 			}
-			else if ()
+			 
+			else if (!strcmp(mnemonic, "WORD")) {
+			
+			}
+			else if (!strcmp(mnemonic, "RESW")) {
+			
+			
+			}
+			else if (!strcmp(mnemonic, "RESB")) {
+			
+			}
+			else if (!strcmp(mnemonic, "BYTE")) {
+				
+			}
+			else { // invalid operation code
+				return 1;
+			}
+
+			// TODO : write line to intermediate file
+			
+			fgets(fileInputStr, 150, fpOrigin); // read next input line
+			fetch_mnem_from_str(fileInputStr, &mnemonic, &symbol);
 		}
 	
 	}
+	
+	// TODO : write last line to intermediate file
+	// TODO : save (LOCCTR - starting address) as program length
+
 
 	fclose(fpInter);
 
@@ -314,13 +340,17 @@ int assemblePass2() {
 	return 0;
 }
 
-void fetch_mnem_from_str(const char * str, char ** symbol, char ** mnemonic) {
-	char * param[2];
+// TODO : 이름 바꾸기 fetch info form str, 전달 인자는 struct로 관리
+void fetch_mnem_from_str(const char * str, char ** symbol, char ** mnemonic, char ** operand) {
+	char * param[3];
 	
+	// TODO : symbol length 와 operand length도 정하기
 	param[0] = (char *) calloc(LEN_MNEMONIC, sizeof(char));
 	param[1] = (char *) calloc(LEN_MNEMONIC, sizeof(char));
-	
-	sscanf(str, "%s %s", param[0], param[1]);
+	param[2] = (char *) calloc(LEN_MNEMONIC, sizeof(char));
+
+	// TODO : 정규표현식으로 param2는 ., \n나오기 바로 전까지 받기
+	sscanf(str, "%s %s %s", param[0], param[1], param[2]);
 
 	if (opcode_mnem(table_head[hash_func(param[1])], param[1]) != -1) { // success to seach mnemonic & symbol also exists
 		*symbol = strdup(param[0]);
@@ -372,7 +402,8 @@ void make_linking_table(op_list ** table_addr, int opcode, const char * mnemonic
 }
 
 
-// TODO : foramt_mnem 과 opcode_mnem을 합치는 작업 필요
+// TODO : format_mnem 과 opcode_mnem을 합치는 작업 필요
+// TODO : table이 입력으로 들어오니 parameter를 넣는 과정이 복잡해지니 이 부분 수정
 /* description : convert mnemonic to opcode.
  * return : opcode number , (error - there is no matching mnemonic) : -1
  * */
@@ -407,7 +438,7 @@ int format_mnem(op_list * table, const char *mnemonic) {
 	if (!table) { // error : there is no matching mnemonic
 		return -1;
 	}
-	return table->opcode;
+	return table->format;
 }
 
 /* description : string to integer

@@ -22,7 +22,7 @@ int main () {
 	// opcode에 관한 정보를 받고 linked list에 저장한다.
 	i = NUM_OF_OPCODES;
 	while (i--) {
-		fscanf(fp, "%02x %s %s\n", &opcode, mnemonic, trash);
+		fscanf(fp, "%02x %s %d%*s\n", &opcode, mnemonic, trash);
 		// TODO : opcode table에서 linking 시켜 op_list 를 굳이 새로 만들지 않게 할 것 && 이 부분도 함수로 moduling 할 것 && trash -> format && mnemonic 바로 받는 것도 생각해 보기
 		make_linking_table(&table_head[hash_func(mnemonic)], opcode, mnemonic, trash);
 		opcode_table[i - 1].opcode = opcode;
