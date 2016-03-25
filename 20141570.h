@@ -9,8 +9,9 @@
 #define NUM_OF_OPCODES 58
 #define LEN_MNEMONIC 6
 #define MEMORY_SIZE 0x100000
-#define SEND_ERROR_MESSEGE(str) printf("%s ERROR OCCURED!!\n", str)
+#define SEND_ERROR_MESSAGE(str) printf("%s ERROR OCCURED!!\n", str)
 #define ADDR_BOUNDARY(addr) ((addr) < 0x100000 ? (addr) : 0xFFFFF)
+#define INTERMEDIATE_FILENAME "inter.asm"
 
 typedef struct _HIST{
 	struct _HIST * next;
@@ -37,11 +38,20 @@ void command_fill(int start, int end, int val);
 void command_reset(void);
 void command_opcode(const char * input_mnem, int * error_flag);
 void command_opcodelist(void);
+void command_assemble(const char * filename, int * error_flag);
+void command_type(const char * filename, int * error_flag);
+void command_symbol(void);
+
 int hash_func(const char * mnemonic);
 void make_linking_table(op_list ** table_addr, int opcode, const char * mnemonic);
 int opcode_mnem(op_list * table, const char *mnemonic);
 
 int strtoi(const char * str, int* error_flag);
+
+int assemblePass1(FILE * fpOrigin);
+int assemblePass2();
+
+void fetch_mnem_from_str(const char * str, char ** symbol, char ** mnemonic);
 
 /* error handling */
 int error_check_comma (int i,int comma_flag);

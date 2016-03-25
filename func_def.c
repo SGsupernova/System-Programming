@@ -3,7 +3,7 @@
 /* function for help command */
 /*****************************/
 void command_help(void) {
-	printf("h[elp]\nd[ir]\nq[uit]\nhi[story]\ndu[mp] [start, end]\ne[dit] address, value\nf[ill] start, end, value\nreset\nopcode mnemonic\nopcodelist\n");
+	printf("h[elp]\nd[ir]\nq[uit]\nhi[story]\ndu[mp] [start, end]\ne[dit] address, value\nf[ill] start, end, value\nreset\nopcode mnemonic\nopcodelist\nassemble filename\ntype filename\nsymbol\n");
 }
 
 
@@ -200,10 +200,143 @@ void command_opcodelist(void) {
 	}
 }
 
+void command_assemble(const char * filename, int * error_flag) {
+	FILE * fpOrigin = fopen(filename, "r");
+	
+	if (!fpOrigin) { // there is no file whose filename is same as the parameter filename.
+		SEND_ERROR_MESSAGE("THERE IS NO SUCH FILE");
+		*error_flag = 1;
+		return ;
+	}
+
+	// get intermediate file through Algorithm for Pass1 of Assembler
+	*error_flag = assemblePass1(fpOrigin);
+	fclose(fpOrigin);
+	if (*error_flag) {
+		return ;
+	}
+
+	// get list file, object file, and 
+	if (*error_flag = assemblePass2()) {
+		return ;
+	}
+}
+
+/* return error_flag */
+void command_type(const char * filename, int * error_flag) {
+	int find_flag = 0;
+	DIR * dp = NULL;
+	struct dirent *entry = NULL;
+	struct stat sb;
+
+	dp = opendir(".");
+
+	while ((entry = readdir(dp)) != NULL) {
+		if (!strcmp(entry->d_name, filename)) {
+			find_flag = 1;
+			break;
+		}
+	}
+	
+	if (!find_flag) { // there is no file whose filename is same as the parameter filename.
+		SEND_ERROR_MESSAGE("THERE IS NO SUCH FILE");
+		*error_flag = 1;
+		return ;
+	}
+	
+	FILE * fp = fopen(filename, "r");
+	char str[50];
+	while (fgets(str, 50, fp)) {
+		fputs(str, stdout);
+	}
+
+	fclose(fp);
+	closedir(dp);
+}
+
+void command_symbol(void) {
+
+}
+
+int assemblePass1(FILE * fpOrigin) {
+	FILE * fpInter = fopen(INTERMEDIATE_FILENAME, "w");
+	int error_flag = 0, operand = 0, LOCCTR = 0;
+	char fileInputStr[150],
+		 *mnemonic = NULL, *symbol = NULL,
+		 exceptCommentStr[150] = {0,};
+
+	/* begin pass1 */
+	fgets(fileInputStr, 150, fpOrigin); // read first input line
+
+	fetch_mnem_from_str(fileInputStr, &mnemonic, &symbol);
+
+	// if OPCODE = 'START'
+	if (!strcmp(mnemonic, "START")) {
+		sscanf(fileInputStr, "%*s %d", &operand);
+		LOCCTR = operand;
+		sscanf(fileInputStr, "%s.%*s", exceptCommentStr);
+		fprintf(fpInter, "%04X\t %s\n", LOCCTR, exceptCommentStr); // write listing line
+		fgets(fileInputStr, 150, fpOrigin);	// read next input line
+	}
+	else {
+		LOCCTR = 0;
+	}
+
+	while (mnemonic == NULL || strcmp(mnemonic, "END")) {
+		if (fileInputStr[0] != '.')	 { // This is not a comment line.
+			fetch_mnem_from_str(fileInputStr, &mnemonic, &symbol);
+
+			if (opcode_mnem(table_head[hash_func(mnemonic)], mnemonic) != -1) { // OPCODE FOUND
+			
+			
+			}
+		}
+	
+	}
+
+	fclose(fpInter);
+
+	return error_flag;
+}
+
+int assemblePass2() {
+
+	return 0;
+}
+
+void fetch_mnem_from_str(const char * str, char ** symbol, char ** mnemonic) {
+	char * param[2];
+	
+	param[0] = (char *) calloc(LEN_MNEMONIC, sizeof(char));
+	param[1] = (char *) calloc(LEN_MNEMONIC, sizeof(char));
+	
+	sscanf(str, "%s %s", param[0], param[1]);
+
+	if (opcode_mnem(table_head[hash_func(param[1])], param[1]) != -1) { // success to seach mnemonic & symbol also exists
+		*symbol = strdup(param[0]);
+		*mnemonic = strdup(param[1]);
+		return ;
+	}
+	*symbol = NULL;
+	free(param[1]);
+	if (opcode_mnem(table_head[hash_func(param[0])], param[0]) != -1 ) {
+		*mnemonic = strdup(param[0]);
+		return ;
+	}
+	
+	*mnemonic = NULL;
+	free(param[0]);
+}
 
 int hash_func(const char * mnemonic) {
 	int i = 0,sum = 0;
-	int len=strlen(mnemonic);
+	int len;
+	
+	if (!mnemonic) {
+		return 0;
+	}
+
+	len = strlen(mnemonic);
 	for(; i< len; i++)
 	{
 		sum += mnemonic[i];
@@ -215,7 +348,9 @@ int hash_func(const char * mnemonic) {
 void make_linking_table(op_list ** table_addr, int opcode, const char * mnemonic) {
 	op_list * new_op = *table_addr;
 
-	while (new_op->next) {
+	while (new_op->next) 
+	
+	{
 		new_op = new_op->next;
 	}
 
@@ -232,20 +367,23 @@ void make_linking_table(op_list ** table_addr, int opcode, const char * mnemonic
  * */
 int opcode_mnem(op_list * table, const char *mnemonic) {
 	table = table->next;
+	if (!mnemonic) { // error
+		return -1;
+	}
 	while (table) {
 		if (!strcmp(table->mnemonic, mnemonic)) {
 			break;
 		}
 		table = table->next;
 	}
-	if (!table) { // error : there is matching mnemonic
+	if (!table) { // error : there is no matching mnemonic
 		return -1;
 	}
 	return table->opcode;
 }
 
 /* description : string to integer
- * paramater : string(may be Hex number)
+ * parameter : string(may be Hex number)
  * return : error_flag = 1 if this string is not integer 
  * */
 int strtoi(const char * str, int* error_flag) {

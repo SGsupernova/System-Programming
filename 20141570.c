@@ -86,11 +86,11 @@ int main () {
 
 		/* error checking */
 		if (error_flag) {
-			SEND_ERROR_MESSEGE("COMMA");
+			SEND_ERROR_MESSAGE("COMMA");
 			continue;
 		}
 		else if(error_check_moreargv(input_str, idx_input_str)) {
-			SEND_ERROR_MESSEGE("OVERFULL ARGV");
+			SEND_ERROR_MESSAGE("OVERFULL ARGV");
 			continue;
 		}
 
@@ -103,7 +103,7 @@ int main () {
 		if (!strcmp(command, "help") || !strcmp(command, "h")) {
 			// argv[0] exist - error
 			if (argv[0][0]) {
-				SEND_ERROR_MESSEGE("FORMAT DOES NOT MATCH THIS COMMAND");
+				SEND_ERROR_MESSAGE("FORMAT DOES NOT MATCH THIS COMMAND");
 				continue;
 			}
 			command_help();
@@ -111,7 +111,7 @@ int main () {
 		else if (!strcmp(command, "dir") || !strcmp(command, "d")) {
 			// argv[0] exist - error
 			if (argv[0][0]) {
-				SEND_ERROR_MESSEGE("FORMAT DOES NOT MATCH THIS COMMAND");
+				SEND_ERROR_MESSAGE("FORMAT DOES NOT MATCH THIS COMMAND");
 				continue;
 			}
 			command_dir();
@@ -119,7 +119,7 @@ int main () {
 		else if (!strcmp(command, "quit") || !strcmp(command, "q")) {
 			// argv[0] exist - error
 			if (argv[0][0]) {
-				SEND_ERROR_MESSEGE("FORMAT DOES NOT MATCH THIS COMMAND");
+				SEND_ERROR_MESSAGE("FORMAT DOES NOT MATCH THIS COMMAND");
 				continue;
 			}
 			break;
@@ -127,7 +127,7 @@ int main () {
 		else if (!strcmp(command, "history") || !strcmp(command, "hi")) {
 			// argv[0] exist - error
 			if (argv[0][0]) {
-				SEND_ERROR_MESSEGE("FORMAT DOES NOT MATCH THIS COMMAND");
+				SEND_ERROR_MESSAGE("FORMAT DOES NOT MATCH THIS COMMAND");
 				continue;
 			}
 			// function check
@@ -140,15 +140,15 @@ int main () {
 
 			/* error handling */
 			if (error_flag) { // does not integer
-				SEND_ERROR_MESSEGE("NOT INTEGER");
+				SEND_ERROR_MESSAGE("NOT INTEGER");
 				continue;
 			}
 			if ((start < 0) || (end < 0) || (start > 0xFFFFF) || (argv[1][0] && (start > end)) || start > 0xFFFFF || end > 0xFFFFF) { // boundary error
-				SEND_ERROR_MESSEGE("BOUNDARY ERROR");
+				SEND_ERROR_MESSAGE("BOUNDARY ERROR");
 				continue;
 			}
 			if (argv[2][0]) { // argv[2] exists
-				SEND_ERROR_MESSEGE("FORMAT DOES NOT MATCH THIS COMMAND");
+				SEND_ERROR_MESSAGE("FORMAT DOES NOT MATCH THIS COMMAND");
 				continue;
 			}
 
@@ -169,15 +169,15 @@ int main () {
 
 			/* error handling */
 			if (error_flag) { // does not integer
-				SEND_ERROR_MESSEGE("NOT INTEGER");
+				SEND_ERROR_MESSAGE("NOT INTEGER");
 				continue;
 			}
 			if (addr < 0x0 || addr > 0xFFFFF || val < 0 || val > 0xFF) { // boundary error
-				SEND_ERROR_MESSEGE("BOUNDARY ERROR");
+				SEND_ERROR_MESSAGE("BOUNDARY ERROR");
 				continue;
 			}
 			if (!argv[0][0] || !argv[1][0] || argv[2][0]) { // argv[0] doesn't exist || argv[1] doesn't exist || argv[2] exist
-				SEND_ERROR_MESSEGE("FORMAT DOES NOT MATCH THIS COMMAND");
+				SEND_ERROR_MESSAGE("FORMAT DOES NOT MATCH THIS COMMAND");
 				continue;
 			}
 
@@ -190,15 +190,15 @@ int main () {
 			
 			/* error handling */
 			if (error_flag) { // does not integer
-				SEND_ERROR_MESSEGE("NOT INTEGER");
+				SEND_ERROR_MESSAGE("NOT INTEGER");
 				continue;
 			}
 			if ((start < 0) || (end < 0) || (start > 0xFFFFF)|| (argv[1][0] && (start > end))  || end > 0xFFFFF || val < 0 || val > 0xFF) { // boundary error
-				SEND_ERROR_MESSEGE("BOUNDARY ERROR");
+				SEND_ERROR_MESSAGE("BOUNDARY ERROR");
 				continue;
 			}
 			if (!argv[0][0] || !argv[1][0] || !argv[2][0]) { // argv[0] doesn't exist || argv[1] doesn't exist || argv[2] exist
-				SEND_ERROR_MESSEGE("FORMAT DOES NOT MATCH THIS COMMAND");
+				SEND_ERROR_MESSAGE("FORMAT DOES NOT MATCH THIS COMMAND");
 				continue;
 			}
 		
@@ -207,7 +207,7 @@ int main () {
 		else if (!strcmp(command, "reset")) {
 			// argv[0] exist - error
 			if (argv[0][0]) {
-				SEND_ERROR_MESSEGE("FORMAT DOES NOT MATCH THIS COMMAND");
+				SEND_ERROR_MESSAGE("FORMAT DOES NOT MATCH THIS COMMAND");
 				continue;
 			}
 			command_reset();
@@ -216,27 +216,57 @@ int main () {
 			char input_mnem[LEN_MNEMONIC];
 			// argv[0] exist - error
 			if (!argv[0][0] || argv[1][0]) {
-				SEND_ERROR_MESSEGE("FORMAT DOES NOT MATCH THIS COMMAND");
+				SEND_ERROR_MESSAGE("FORMAT DOES NOT MATCH THIS COMMAND");
 				continue;
 			}
 
 			strcpy(input_mnem, argv[0]);
 			command_opcode(input_mnem, &error_flag);
 			if (error_flag == -1) {
-				SEND_ERROR_MESSEGE("THERE IS NO MATCHING MNEMONIC");
+				SEND_ERROR_MESSAGE("THERE IS NO MATCHING MNEMONIC");
 				continue;
 			}
 		}
 		else if (!strcmp(command, "opcodelist")) {
 			// argv[0] exist - error
 			if (argv[0][0]) {
-				SEND_ERROR_MESSEGE("FORMAT DOES NOT MATCH THIS COMMAND");
+				SEND_ERROR_MESSAGE("FORMAT DOES NOT MATCH THIS COMMAND");
 				continue;
 			}
 			command_opcodelist();
 		}
+		else if (!strcmp(command, "assemble")) {
+			if (argv[1][0] || !argv[0][0]) { // argv[1][0] != 0 implies that second argument exists and argv[1][0] == 0 implies that first argument does not exist.
+				SEND_ERROR_MESSAGE("FORMAT DOES NOT MATCH THIS COMMAND");
+				continue;
+			}
+			command_type(argv[0], &error_flag);
+
+			if (error_flag) {
+				SEND_ERROR_MESSAGE("FORMAT DOES NOT MATCH THIS COMMAND. PLEASE TYPE \"assemble filename\"");
+				continue;
+			}
+
+		}
+		else if (!strcmp(command, "type")) {
+			if (argv[1][0] || !argv[0][0]) { // argv[1][0] != 0 implies that second argument exists and argv[1][0] == 0 implies that first argument does not exist.
+				SEND_ERROR_MESSAGE("FORMAT DOES NOT MATCH THIS COMMAND");
+				continue;
+			}
+			command_type(argv[0], &error_flag);
+
+			if (error_flag) {
+				// error is occured
+				continue;
+			}
+		}
+		else if (!strcmp(command, "symbol")) {
+			// TODO : error check!
+			command_symbol();
+		}
+
 		else {
-			SEND_ERROR_MESSEGE("\"THIS COMMAND DOES NOT EXIST \"");
+			SEND_ERROR_MESSAGE("\"THIS COMMAND DOES NOT EXIST \"");
 			continue;
 		}
 
