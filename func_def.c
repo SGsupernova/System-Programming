@@ -2,6 +2,7 @@
 /*****************************/
 /* function for help command */
 /*****************************/
+// TODO : 각 한 줄씩 printf할 것
 void command_help(void) {
 	printf("h[elp]\nd[ir]\nq[uit]\nhi[story]\ndu[mp] [start, end]\ne[dit] address, value\nf[ill] start, end, value\nreset\nopcode mnemonic\nopcodelist\nassemble filename\ntype filename\nsymbol\n");
 }
@@ -264,6 +265,11 @@ int assemblePass1(FILE * fpOrigin) {
 	char fileInputStr[150],
 		 *mnemonic = NULL, *symbol = NULL,
 		 exceptCommentStr[150] = {0,};
+	symbMnemOper infoSetFromStr;
+	
+	infoSetFromStr.symbol = NULL;
+	infoSetFromStr.mnemonic = NULL;
+	infoSetFromStr.operand = NULL;
 
 	/* begin pass1 */
 	fgets(fileInputStr, 150, fpOrigin); // read first input line
@@ -340,32 +346,42 @@ int assemblePass2() {
 	return 0;
 }
 
-// TODO : 이름 바꾸기 fetch info form str, 전달 인자는 struct로 관리
-void fetch_mnem_from_str(const char * str, char ** symbol, char ** mnemonic, char ** operand) {
-	char * param[3];
-	
-	// TODO : symbol length 와 operand length도 정하기
-	param[0] = (char *) calloc(LEN_MNEMONIC, sizeof(char));
-	param[1] = (char *) calloc(LEN_MNEMONIC, sizeof(char));
-	param[2] = (char *) calloc(LEN_MNEMONIC, sizeof(char));
+// XXX : 이름 바꾸기 fetch info form str, 전달 인자는 struct로 관리
+void fetch_info_from_str(const char * str, symbMnemOper infoSetFromStr) {
+	char * symbol, * mnemonic, * operand;
+		
+	// XXX : set symbol length and operand length
+	symbol = (char *) calloc(LEN_SYMBOL, sizeof(char));
+	mnemonic = (char *) calloc(LEN_MNEMONIC, sizeof(char));
+	operand = (char *) calloc(LEN_OPERAND, sizeof(char));
 
-	// TODO : 정규표현식으로 param2는 ., \n나오기 바로 전까지 받기
-	sscanf(str, "%s %s %s", param[0], param[1], param[2]);
+	// XXX : 정규표현식으로 param2는 ., \n나오기 바로 전까지 받기
+	sscanf(str, "%s %s %[^.\n]", symbol, mnemonic, operand);
 
-	if (opcode_mnem(table_head[hash_func(param[1])], param[1]) != -1) { // success to seach mnemonic & symbol also exists
-		*symbol = strdup(param[0]);
-		*mnemonic = strdup(param[1]);
+	if (opcode_mnem(table_head[hash_func(mnemonic)], mnemonic) != -1) { // success to seach mnemonic & symbol also exists
+		infoSetFromStr->symbol = symbol;
+		infoSetFromStr->mnemonic = mnemonic;
+		infoSetFromStr->operand = operand;
 		return ;
 	}
-	*symbol = NULL;
-	free(param[1]);
-	if (opcode_mnem(table_head[hash_func(param[0])], param[0]) != -1 ) {
-		*mnemonic = strdup(param[0]);
+
+	infoSetFromStr->symbol = NULL;
+	if (opcode_mnem(table_head[hash_func(symbol)], symbol) != -1 ) { // first param is mnemonic
+		sscanf(str, "%s %[^.\n]", mnemonic, operand);
+		infoSetFromStr->mnemonic = mnemonic;
+		infoSetFromStr->operand = operand;
+		free(symbol);
 		return ;
 	}
 	
-	*mnemonic = NULL;
-	free(param[0]);
+	free(mnemonic);
+	free(operand);
+}
+
+void initFetchedInfoFromStr(symbMnemOper * infoSetFromStr) {
+	infoSetFromStr->symbol = NULL;
+	infoSetFromStr->mnemonic = NULL;
+	infoSetFromStr->operand = NULL;
 }
 
 int hash_func(const char * mnemonic) {

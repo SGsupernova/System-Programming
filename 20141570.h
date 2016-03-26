@@ -8,6 +8,8 @@
 #define MAX_LEN_COMMAND 10
 #define NUM_OF_OPCODES 58
 #define LEN_MNEMONIC 6
+#define LEN_SYMBOL 10
+#define LEN_OPERAND 20
 #define MEMORY_SIZE 0x100000
 #define SEND_ERROR_MESSAGE(str) printf("%s ERROR OCCURED!!\n", str)
 #define ADDR_BOUNDARY(addr) ((addr) < 0x100000 ? (addr) : 0xFFFFF)
@@ -38,6 +40,12 @@ typedef struct _OPTAB {
 	char mnemonic[LEN_MNEMONIC];
 } OPTAB;
 
+typedef struct {
+	char * symbol;
+	char * mnemonic;
+	char * operand;
+} symbMnemOper;
+
 OPTAB opcode_table[NUM_OF_OPCODES];
 SYMTAB *symbol_table;
 op_list *table_head[20];
@@ -67,9 +75,11 @@ int format_mnem(op_list * table, const char *mnemonic);
 int strtoi(const char * str, int* error_flag);
 
 int assemblePass1(FILE * fpOrigin);
+// TODO : For using same fetch function used assemblePass1, make a function that find a  location except LOCCTR
 int assemblePass2();
 
-void fetch_mnem_from_str(const char * str, char ** symbol, char ** mnemonic);
+void fetch_info_from_str(const char * str, symbMnemOper *infoSetFromStr);
+void initFetchedInfoFromStr(symbMnemOper * infoSetFromStr);
 
 /* error handling */
 int error_check_comma (int i,int comma_flag);
