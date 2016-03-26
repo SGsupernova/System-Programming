@@ -259,30 +259,28 @@ void command_symbol(void) {
 
 }
 
+// return 1 means that a error occurs
 int assemblePass1(FILE * fpOrigin) {
 	FILE * fpInter = fopen(INTERMEDIATE_FILENAME, "w");
-	int operand = 0, LOCCTR = 0, foramt = 0;
+	int operand = 0, LOCCTR = 0, foramt = 0, error_flag = 0;
 	char fileInputStr[150],
 		 *mnemonic = NULL, *symbol = NULL,
-		 exceptCommentStr[150] = {0,};
+		 exceptCommentStr[150] = {0,}; // TODO : mnemonic , symbol 등이 필요 없을 가능성이 높음, 추후에 보고 고칠 것.
 	symbMnemOper infoSetFromStr;
 	
-	infoSetFromStr.symbol = NULL;
-	infoSetFromStr.mnemonic = NULL;
-	infoSetFromStr.operand = NULL;
+	initFetchedInfoFromStr(infoSetFromStr);
 
 	/* begin pass1 */
 	fgets(fileInputStr, 150, fpOrigin); // read first input line
 
-	fetch_mnem_from_str(fileInputStr, &mnemonic, &symbol);
+	fetch_info_from_str(fileInputStr, &infoSetFromStr);
 
 	// if OPCODE = 'START'
 	if (!strcmp(mnemonic, "START")) {
-		// TODO : 이 부분 fetch 함수를 이용하기, fetch 함수 내용 수정
-		sscanf(fileInputStr, "%*s %d", &operand);
-		LOCCTR = operand;
-		sscanf(fileInputStr, "%s.%*s", exceptCommentStr);
-		fprintf(fpInter, "%04X\t %s\n", LOCCTR, exceptCommentStr); // write listing line
+		// XXX : 이 부분 fetch 함수를 이용함(수정 완료)
+		fetch_info_from_str(fileInputStr, &infoSetFromStr);
+		LOCCTR = strtoi(infoSetFromStr.operand);
+		fprintf(fpInter, "%04X\t%s\n", LOCCTR, fileInputStr); // write listing line
 		fgets(fileInputStr, 150, fpOrigin);	// read next input line
 	}
 	else {
@@ -291,12 +289,12 @@ int assemblePass1(FILE * fpOrigin) {
 
 	while (mnemonic == NULL || strcmp(mnemonic, "END")) {
 		if (fileInputStr[0] != '.')	 { // This is not a comment line.
-			fetch_mnem_from_str(fileInputStr, &mnemonic, &symbol);
+			fetch_mnem_from_str(fileInputStr, &infoSetFromStr);
 			
-			// TODO : make a function searching SYMTAB
+			// XXX : make a function searching SYMTAB(Complete)
 			// search SYMTAB for LABEL & there is same LABEL
-			if (searchSYMTAB()) {
-				return 1; // error
+			if (searchSYMTAB(infoSetFromStr.symbol)) {
+				return 1; // error(FOUND same symbol)
 			}
 			else {
 				insert2SYMTAB(symbol, LOCCTR);
@@ -304,23 +302,42 @@ int assemblePass1(FILE * fpOrigin) {
 
 			// search OPTAB for OPCODE
 			if ((format = format_mnem(table_head[hash_func(mnemonic)], mnemonic)) != -1) { // OPCODE FOUND
-				LOCCTR += format;
+				LOCCTR += format; // add {instruction length} to LOCCTR
 			}
-			 
 			else if (!strcmp(mnemonic, "WORD")) {
-			
+				if (infoSetFromStr.operand) { // error
+					SEND_ERROR_MESSAGE("WORD'S OPERAND ERROR OCCURED - TOO MANY OPERAND");
+					return 1;
+				}
+				LOCCTR += 3;
 			}
 			else if (!strcmp(mnemonic, "RESW")) {
-			
-			
+				operand = strtoi(infoSetFromStr.operand, &error_flag);
+				
+				if (error_flag) {
+					SEND_ERROR_MESSAGE("RESW'S OPERAND ERROR OCCURED!!");
+					return 1;
+				}
+				LOCCTR += 3 * operand;
 			}
 			else if (!strcmp(mnemonic, "RESB")) {
-			
+				operand = strtoi(infoSetFromStr.operand, &error_flag);
+
+				if (error_flag) {
+					SEND_ERROR_MESSAGE("RESB'S OPERAND ERROR OCCURED!!");
+					return 1;
+				}
+				LOCCTR += operand;
 			}
 			else if (!strcmp(mnemonic, "BYTE")) {
-				
+				if ((operand = getBYTElength(strBYTE)) == -1) {
+					SEND_ERROR_MESSAGE("BYTE'S OPERAND ERROR OCCURED!!");
+					return 1;
+				}
+				LOCCTR += operand;
 			}
 			else { // invalid operation code
+				SEND_ERROR_MESSAGE("INVALID OPERATION CODE!!");
 				return 1;
 			}
 
@@ -342,8 +359,67 @@ int assemblePass1(FILE * fpOrigin) {
 }
 
 int assemblePass2() {
-
 	return 0;
+}
+
+// Returning : -1 implies a error occurs
+//				0 implies BYTE C' '
+//				otherwise return the number X' '
+int analyseByte (const char * strBYTE, int * byteLength) {
+	int i = 0, length = 0, num = 0;
+
+	if (strBYTE[1] != '\'') {
+		return -1;
+	}
+	if (strBYTE[0] == 'X') {
+		for (i = 2; ; i += 2, length ++) {
+			if ('a' <= strBYTE[i] && strBYTE[i] <= 'z')
+					('A' <= strBYTE[i] && strBYTE[i] <= 'Z') || 
+					('0' <= strBYTE[i] && strBYTE[i] <= '9')) {
+
+				}
+			}
+			else if (strBYTE[i] == '\'') {
+				*byteLength = length;
+				return 0;
+			}
+			else {
+				return -1;
+			}
+		}
+	}
+	else if (strBYTE[0] == 'C') {
+		for (i = 2;)
+	}
+}
+
+int searchSYMTAB(const char * symbol) {
+	SYMTAB * search_sym = symbol_table;
+
+	while (search_sym) {
+		if (!strcmp(search_sym->symbol, symbol)) { // FOUND
+			return 0;
+		}
+		search_sym = search_sym->next;
+	}
+	// NOT FOUND
+	return 0;
+}
+
+void insert2SYMTAB (const char * symbol, int LOCCTR) {
+	SYMTAB * new_sym = symbol_table; // TODO : change a global variable to parameter(structure)
+	if (new_sym) {
+		while (new_sym->next) {
+			new_sym = new_sym->next;
+		}
+		new_sym->next = (SYMTAB *) calloc(1, sizeof(SYMTAB));
+		new_sym->next->LOCCTR = LOCCTR;
+		new_sym->next->symbol = symbol;
+	} else {
+		new_sym = (SYMTAB *) calloc(1, sizeof(SYMTAB));
+		new_sym->LOCCTR = LOCCTR;
+		new_sym->symbol = symbol;
+	}
 }
 
 // XXX : 이름 바꾸기 fetch info form str, 전달 인자는 struct로 관리
@@ -401,6 +477,7 @@ int hash_func(const char * mnemonic) {
 }
 
 
+// XXX : 더 효율적으로 돌아가게 생각해보기
 void make_linking_table(op_list ** table_addr, int opcode, const char * mnemonic, int foramt) {
 	op_list * new_op = *table_addr;
 
@@ -462,13 +539,23 @@ int format_mnem(op_list * table, const char *mnemonic) {
  * return : error_flag = 1 if this string is not integer 
  * */
 int strtoi(const char * str, int* error_flag) {
-	int i = 0, minus_flag = 1, res = 0;
+	int i = 0, res = 0,
+		minus_flag = 1, x_flag = 0;
 
-	// case : negative integer
-	if (str[0] == '-') {
+	if (str == NULL) {
+		return -1;
+	}
+
+	if (str[0] == 'X' && str[1] == '\'') {
+		i += 2;
+		x_flag = 1;
+	}
+	// case : negative integer, this case is usually error
+	else if (str[0] == '-') {
 		minus_flag = -1;
 		i ++;
-	}
+	
+	LOCCTR += operand;}
 	// case : 0x123 or 0X123
 	else if (str[0] == '0' && (str[1] == 'x' || str[1] == 'X')) {
 		i += 2;
@@ -484,6 +571,12 @@ int strtoi(const char * str, int* error_flag) {
 		}
 		else if ('a' <= str[i] && str[i] <= 'f') {
 			res = res * 16 + str[i] - 'a' + 10;
+		}
+		else if (str[i] == ' ' || str[i] == '\t' || str[i] == '\n') {
+			continue;
+		}
+		else if (x_flag && str[i] == 0) {
+			return res;
 		}
 		// error case
 		else {

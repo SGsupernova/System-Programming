@@ -1,15 +1,19 @@
+// TODO : order functions
+// TODO : string handling function 중에서 입력이 NULL인 경우 처리 할 것
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <dirent.h>
 #include <sys/stat.h>
 
+// TODO : 0x100000 -> MEMORY_SIZE
+
 #define MAX_LEN_INPUT 100
 #define MAX_LEN_COMMAND 10
 #define NUM_OF_OPCODES 58
 #define LEN_MNEMONIC 6
 #define LEN_SYMBOL 10
-#define LEN_OPERAND 20
+#define LEN_OPERAND 40
 #define MEMORY_SIZE 0x100000
 #define SEND_ERROR_MESSAGE(str) printf("%s ERROR OCCURED!!\n", str)
 #define ADDR_BOUNDARY(addr) ((addr) < 0x100000 ? (addr) : 0xFFFFF)
@@ -31,7 +35,7 @@ typedef struct _HASH_LINK{
 typedef struct _SYMBOL_TABLE {
 	struct _SYMBOL_TABLE * next;
 	int LOCCTR;
-	char * label;
+	char * symbol;
 } SYMTAB;
 
 typedef struct _OPTAB {
@@ -78,8 +82,14 @@ int assemblePass1(FILE * fpOrigin);
 // TODO : For using same fetch function used assemblePass1, make a function that find a  location except LOCCTR
 int assemblePass2();
 
+int searchSYMTAB(const char * symbol);
+void insert2SYMTAB(const char * symbol, int LOCCTR);
+
 void fetch_info_from_str(const char * str, symbMnemOper *infoSetFromStr);
 void initFetchedInfoFromStr(symbMnemOper * infoSetFromStr);
+int analyseBYTE(const char * strBYTE, int * byteLength);
+
+// TODO : DELETE SYMBOL TABLE FUNCTION
 
 /* error handling */
 int error_check_comma (int i,int comma_flag);
