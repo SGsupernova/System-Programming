@@ -139,8 +139,8 @@ int main () {
 
 		else if (!strcmp(command, "dump") || !strcmp(command, "du")) {
 			// exception handling - boundary error and existing thrid argv
-			int start = strtoi(argv[0], &error_flag),
-				end = strtoi(argv[1], &error_flag);
+			int start = strtoi(argv[0], &error_flag, 16),
+				end = strtoi(argv[1], &error_flag, 16);
 
 			/* error handling */
 			if (error_flag) { // does not integer
@@ -168,8 +168,8 @@ int main () {
 		}
 
 		else if (!strcmp(command, "edit") || !strcmp(command, "e")) {
-			int addr = strtoi(argv[0], &error_flag),
-				val = strtoi(argv[1], &error_flag);
+			int addr = strtoi(argv[0], &error_flag, 16),
+				val = strtoi(argv[1], &error_flag, 16);
 
 			/* error handling */
 			if (error_flag) { // does not integer
@@ -188,9 +188,9 @@ int main () {
 			command_edit(addr, val);
 		}
 		else if (!strcmp(command, "fill") || !strcmp(command, "f")) {
-			int start = strtoi(argv[0], &error_flag),
-				end = strtoi(argv[1], &error_flag),
-				val = strtoi(argv[2], &error_flag);
+			int start = strtoi(argv[0], &error_flag, 16),
+				end = strtoi(argv[1], &error_flag, 16),
+				val = strtoi(argv[2], &error_flag, 16);
 			
 			/* error handling */
 			if (error_flag) { // does not integer
