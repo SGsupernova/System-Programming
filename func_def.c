@@ -312,9 +312,6 @@ int assemblePass1(FILE * fpOrigin, int * prog_len) {
 
 	while (infoSetFromStr.mnemonic == NULL || strcmp(infoSetFromStr.mnemonic, "END")) {
 		if (!isCommentLine(fileInputStr) && !(infoSetFromStr.mnemonic && !strcmp(infoSetFromStr.mnemonic, "BASE"))) { // This is not a comment line.
-/*			printf("infoSetFromStr.symbol : *%s*\n", infoSetFromStr.symbol);
-			printf("infoSetFromStr.mnemonic : *%s*\n", infoSetFromStr.mnemonic);
-			printf("infoSetFromStr.operand : *%s*\n", infoSetFromStr.operand); */
 
 			// XXX : make a function searching SYMTAB(Complete)
 			// search SYMTAB for LABEL & there is same LABEL
@@ -375,7 +372,7 @@ int assemblePass1(FILE * fpOrigin, int * prog_len) {
 				cur_line_error_flag = 1;
 			}
 		}
-		
+
 
 		error_flag = error_flag || cur_line_error_flag;
 		cur_line_error_flag = 0;
@@ -389,8 +386,9 @@ int assemblePass1(FILE * fpOrigin, int * prog_len) {
 			fprintf(fpInter,"%04X\t%s", prior_LOCCTR, fileInputStr);
 			prior_LOCCTR = LOCCTR;
 		}
-		else if (isCommentLine(fileInputStr)){
-			fprintf(fpInter,"\t%s", fileInputStr);
+		else {
+//		else if (isCommentLine(fileInputStr)){
+			fprintf(fpInter,"\t\t%s", fileInputStr);
 		}
 
 		fgets(fileInputStr, 150, fpOrigin); // read next input line
@@ -417,7 +415,7 @@ int assemblePass2(const char * filename, int prog_len) {
 	int operand_addr = 0, LOCCTR = 0, disp = 0, cur_line_LOCCTR = 0,
 		line_num = 5, opcodeOfMnemonic = 0, len_mnem = 0, i = 0,
 		foramt = 0, error_flag = 0, cur_line_error_flag = 0, start_LOCCTR = 0, first_LOCCTR = 0;
-	int op_temp, temp,hex;
+	int op_temp, temp,hex, temp_store[2];
 	char fileInputStr[150], 
 		 exceptCommentStr[150] = {0,}; // TODO : mnemonic , symbol 등이 필요 없을 가능성이 높음, 추후에 보고 고칠 것.
 	char * filenameLst = NULL, *filenameObj = NULL;
@@ -443,17 +441,21 @@ int assemblePass2(const char * filename, int prog_len) {
 	free(filenameLst);
 	free(filenameObj);
 
+
+
 	/* begin pass2 */
 	while (1) {
 		fgets(fileInputStr, 150, fpInter); // read input lines
 		fileInputStr[strlen(fileInputStr) - 1] = 0;
-		
+
 		if (!isCommentLine(fileInputStr)) { // this line is not a comment line
 			break;
 		}
 		fprintf(fpLst, "%03d\t%s\n", line_num, fileInputStr); // write listing line
 		line_num += 5;
 	}
+
+
 
 	// NOTE : In process "PASS2", we must use form like below
 	fetch_info_from_str(fileInputStr + START_RAW_STR_PASS2, &infoSetFromStr);
@@ -476,10 +478,13 @@ int assemblePass2(const char * filename, int prog_len) {
 	initTextRecord(textRecord);
 
 	while (infoSetFromStr.mnemonic == NULL || strcmp(infoSetFromStr.mnemonic, "END")) {
-		
-		if (!isCommentLine(fileInputStr)) { // This is not a comment line.
 
-			if (opcode_mnem(table_head[hash_func(infoSetFromStr.mnemonic)], infoSetFromStr.mnemonic) != -1) {
+		if (!isCommentLine(fileInputStr) 
+				&& !(infoSetFromStr.mnemonic && !strcmp(infoSetFromStr.mnemonic, "BASE"))) 
+		{ // This is not a comment line.
+			temp_store[0] = opcode_mnem(table_head[hash_func(infoSetFromStr.mnemonic)], infoSetFromStr.mnemonic);
+			temp_store[1] = opcode_mnem(table_head[hash_func(infoSetFromStr.mnemonic + 1)], infoSetFromStr.mnemonic + 1);
+			if(temp_store[0] != -1 || temp_store[1] != -1) {
 				// there is a symbol in OPERAND field 
 				if (searchSYMTAB(infoSetFromStr.operand, &LOCCTR)) {
 					// store symbol value as operand address
@@ -492,28 +497,27 @@ int assemblePass2(const char * filename, int prog_len) {
 				// assemble the object code instruction
 				opcodeOfMnemonic = opcode_mnem(table_head[hash_func(infoSetFromStr.mnemonic)], infoSetFromStr.mnemonic);
 
-				/*
+				if (infoSetFromStr.operand[0] == '@') { // indirect addressing
+					registerSet.n = 1;
+				}
+				else if (infoSetFromStr.operand[0] == '#') { // immediate addressing
+					registerSet.i = 1;
+				}
 
-				   if (infoSetFromStr.operand[0] == '@') { // indirect addressing
-				   registerSet.n = 1;
-				   }
-				   else if (infoSetFromStr.operand[0] == '#') { // immediate addressing
-				   registerSet.i = 1;
-				   }
+				if (1) {
 
-				   if ()
+				}
 				// pc relative
-				fscanf(fpInter, "%04X", &cur_line_LOCCTR); // pc : cur_line_LOCCTR + 3
+				sscanf(fileInputStr, "%04X", &cur_line_LOCCTR); // pc : cur_line_LOCCTR + 3
 				disp = operand_addr - (cur_line_LOCCTR + 3);
 				if (-2048 <= operand_addr && operand_addr <= 2047) {
 
 
 				}
-				else if () {
+				else if (1) {
 
 
 				}
-				*/
 			}
 			// OPCODE = 'BYTE' or 'WORD'
 			else if (!strcmp(infoSetFromStr.mnemonic, "BYTE")) {
