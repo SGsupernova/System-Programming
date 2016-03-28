@@ -251,7 +251,6 @@ int main () {
 				// FATAL it needs to be fixed.
 				symbol_table = NULL;
 			}
-			symbol_table = (SYMTAB *) calloc(1, sizeof(SYMTAB));
 			command_assemble(argv[0], &error_flag);
 
 			if (error_flag) {
