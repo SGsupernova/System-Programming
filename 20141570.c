@@ -20,14 +20,15 @@ int main () {
 	}
 
 	// opcode에 관한 정보를 받고 linked list에 저장한다.
-	i = NUM_OF_OPCODES;
-	while (i--) {
-		fscanf(fp, "%02X %s %d%*s\n", &opcode, mnemonic, &format);
+	i = 0;
+	while (i < NUM_OF_OPCODES) {
+		fscanf(fp, "%02X %s %d/%*s\n", &opcode, mnemonic, &format);
 		// TODO : opcode table에서 linking 시켜 op_list 를 굳이 새로 만들지 않게 할 것 && 이 부분도 함수로 moduling 할 것 && trash -> format && mnemonic 바로 받는 것도 생각해 보기
 		make_linking_table(&table_head[hash_func(mnemonic)], opcode, mnemonic, format);
-		opcode_table[i - 1].opcode = opcode;
-		opcode_table[i - 1].format = format;
-		strcpy(opcode_table[i - 1].mnemonic, mnemonic);
+		opcode_table[i].opcode = opcode;
+		opcode_table[i].format = format;
+		strcpy(opcode_table[i].mnemonic, mnemonic);
+		i ++;
 	}
 
 
@@ -247,15 +248,15 @@ int main () {
 			// TODO : Make a function deallocating a symbol_table
 			if (!symbol_table) {
 				// free symbol_table
+				// FATAL it needs to be fixed.
+				symbol_table = NULL;
 			}
 			symbol_table = (SYMTAB *) calloc(1, sizeof(SYMTAB));
-			command_type(argv[0], &error_flag);
+			command_assemble(argv[0], &error_flag);
 
 			if (error_flag) {
-				SEND_ERROR_MESSAGE("FORMAT DOES NOT MATCH THIS COMMAND. PLEASE TYPE \"assemble filename\"");
 				continue;
 			}
-
 		}
 		else if (!strcmp(command, "type")) {
 			if (argv[1][0] || !argv[0][0]) { // argv[1][0] != 0 implies that second argument exists and argv[1][0] == 0 implies that first argument does not exist.
@@ -270,7 +271,15 @@ int main () {
 			}
 		}
 		else if (!strcmp(command, "symbol")) {
-			// TODO : error check!
+			// XXX : error check!
+			if (argv[0][0]) {
+				SEND_ERROR_MESSAGE("FORMAT DOES NOT MATCH THIS COMMAND");
+				continue;
+			}
+			if (!symbol_table) {
+				SEND_ERROR_MESSAGE("THERE IS NO SYMBOL TABLE");
+				continue;
+			}
 			command_symbol();
 		}
 

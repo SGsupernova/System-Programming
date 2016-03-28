@@ -106,10 +106,14 @@ void initRegister(struct reg * registerSet);
 
 int analyseBYTE(const char * strBYTE, int * byteLength);
 int isCommentLine(const char * str);
+int isDirective(const char * str);
 
 int TokenizeOperand(const char * operandStr, char ** operand);
 
+void sortSYMTABandPrint();
+
 // TODO : DELETE SYMBOL TABLE FUNCTION
+// TODO : DEALLOCATING sth FUNCTIONS 필요함!!
 
 /* error handling */
 int error_check_comma (int i,int comma_flag);

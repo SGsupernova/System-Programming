@@ -259,8 +259,7 @@ void command_type(const char * filename, int * error_flag) {
 }
 
 void command_symbol(void) {
-
-	return ;
+	sortSYMTABandPrint();
 }
 
 // return 1 means that a error occurs
@@ -269,11 +268,13 @@ int assemblePass1(FILE * fpOrigin, int * prog_len) {
 	int start_addr, LOCCTR = 0, line_num = 5, bogus = 0,
 		operand = 0, format = 0, error_flag = 0, cur_line_error_flag = 0;
 	char fileInputStr[150],
-		 *mnemonic = NULL, *symbol = NULL,
 		 exceptCommentStr[150] = {0,}; // TODO : mnemonic , symbol 등이 필요 없을 가능성이 높음, 추후에 보고 고칠 것.
 	symbMnemOper infoSetFromStr;
 
-	initFetchedInfoFromStr(&infoSetFromStr);
+	infoSetFromStr.symbol = infoSetFromStr.mnemonic = infoSetFromStr.operand = NULL;
+
+	printf("init!\n");
+
 
 	/* begin pass1 */
 	while (1) {
@@ -287,10 +288,11 @@ int assemblePass1(FILE * fpOrigin, int * prog_len) {
 	}
 	fetch_info_from_str(fileInputStr, &infoSetFromStr);
 
+	
 	// if OPCODE = 'START'
 	if (!strcmp(infoSetFromStr.mnemonic, "START")) {
+		printf("hello?\n");
 		// XXX : 이 부분 fetch 함수를 이용함(수정 완료)
-		fetch_info_from_str(fileInputStr, &infoSetFromStr);
 		LOCCTR = start_addr = strtoi(infoSetFromStr.operand, &error_flag, 16);
 		if (start_addr < 0 || error_flag == 1) { // ERROR : start_addr can not be negative
 			SEND_ERROR_MESSAGE("OPERAND FORMAT IS A ERROR");
@@ -299,6 +301,8 @@ int assemblePass1(FILE * fpOrigin, int * prog_len) {
 		}
 		fprintf(fpInter, "%04X\t%s\n", LOCCTR, fileInputStr); // write listing line
 		fgets(fileInputStr, 150, fpOrigin);	// read next input line
+		printf("fileInputStr : %s", fileInputStr);
+		fetch_info_from_str(fileInputStr, &infoSetFromStr);
 		line_num += 5;
 	}
 	else {
@@ -306,8 +310,15 @@ int assemblePass1(FILE * fpOrigin, int * prog_len) {
 	}
 
 	while (infoSetFromStr.mnemonic == NULL || strcmp(infoSetFromStr.mnemonic, "END")) {
+		printf("WHILE LOOP\n");
 		if (!isCommentLine(fileInputStr)) { // This is not a comment line.
-			fetch_info_from_str(fileInputStr, &infoSetFromStr);
+// fetch_info_from_str(fileInputStr, &infoSetFromStr);
+
+			printf("fileInputStr %s\n", fileInputStr);
+
+			printf("infoSetFromStr.symbol : *%s*\n", infoSetFromStr.symbol);
+			printf("infoSetFromStr.mnemonic : *%s*\n", infoSetFromStr.mnemonic);
+			printf("infoSetFromStr.operand : *%s*\n", infoSetFromStr.operand);
 
 			// XXX : make a function searching SYMTAB(Complete)
 			// search SYMTAB for LABEL & there is same LABEL
@@ -317,20 +328,20 @@ int assemblePass1(FILE * fpOrigin, int * prog_len) {
 				// TODO : =1 보다 | 1(bit operation)을 하는 것이 속도 향상 면에서 더 좋아 보임
 			}
 			else {
-				insert2SYMTAB(symbol, LOCCTR);
+				insert2SYMTAB(infoSetFromStr.symbol, LOCCTR);
 			}
 			// TODO : 나중에 다시 sp 짤 때 operand 안들어오는 경우 제외 시키기
 			// search OPTAB for OPCODE
-			if ((format = format_mnem(table_head[hash_func(mnemonic)], mnemonic)) != -1) { // OPCODE FOUND
+			if ((format = format_mnem(table_head[hash_func(infoSetFromStr.mnemonic)], infoSetFromStr.mnemonic)) != -1) { // OPCODE FOUND
 				LOCCTR += format; // add {instruction length} to LOCCTR
-				if (mnemonic[0] == '+') {
+				if (infoSetFromStr.mnemonic[0] == '+') {
 					LOCCTR ++;
 				}
 			}
-			else if (!strcmp(mnemonic, "WORD")) {
+			else if (!strcmp(infoSetFromStr.mnemonic, "WORD")) {
 				LOCCTR += 3;
 			}
-			else if (!strcmp(mnemonic, "RESW")) {
+			else if (!strcmp(infoSetFromStr.mnemonic, "RESW")) {
 				operand = strtoi(infoSetFromStr.operand, &error_flag, 10);
 				if (error_flag) {
 					SEND_ERROR_MESSAGE("RESW'S OPERAND");
@@ -338,7 +349,7 @@ int assemblePass1(FILE * fpOrigin, int * prog_len) {
 				}
 				LOCCTR += 3 * operand;
 			}
-			else if (!strcmp(mnemonic, "RESB")) {
+			else if (!strcmp(infoSetFromStr.mnemonic, "RESB")) {
 				operand = strtoi(infoSetFromStr.operand, &error_flag, 10);
 
 				if (error_flag) {
@@ -347,7 +358,7 @@ int assemblePass1(FILE * fpOrigin, int * prog_len) {
 				}
 				LOCCTR += operand;
 			}
-			else if (!strcmp(mnemonic, "BYTE")) {
+			else if (!strcmp(infoSetFromStr.mnemonic, "BYTE")) {
 				operand = analyseByte(infoSetFromStr.operand);
 				if (operand == -1) {
 					SEND_ERROR_MESSAGE("BYTE'S OPERAND NOT MATCHING");
@@ -355,11 +366,13 @@ int assemblePass1(FILE * fpOrigin, int * prog_len) {
 				}
 				LOCCTR += operand;
 			}
-			else if (!strcmp(mnemonic, "BASE")) {}
+			else if (!strcmp(infoSetFromStr.mnemonic, "BASE")) {}
 			else { // invalid operation code
 				SEND_ERROR_MESSAGE("INVALID OPERATION CODE");
 				cur_line_error_flag = 1;
 			}
+
+			printf("INTERMEDIATE TIME\n");
 
 			error_flag = error_flag || cur_line_error_flag;
 			cur_line_error_flag = 0;
@@ -381,6 +394,8 @@ int assemblePass1(FILE * fpOrigin, int * prog_len) {
 
 			initFetchedInfoFromStr(&infoSetFromStr);
 			fetch_info_from_str(fileInputStr, &infoSetFromStr);
+
+			printf("LOOP RETURN!!\n");
 		}
 	}
 
@@ -403,7 +418,6 @@ int assemblePass2(const char * filename, int prog_len) {
 		foramt = 0, error_flag = 0, cur_line_error_flag = 0, start_LOCCTR = 0, first_LOCCTR = 0;
 	int op_temp, temp,hex;
 	char fileInputStr[150], 
-		 * mnemonic = NULL, *symbol = NULL,
 		 exceptCommentStr[150] = {0,}; // TODO : mnemonic , symbol 등이 필요 없을 가능성이 높음, 추후에 보고 고칠 것.
 	char * filenameLst = NULL, *filenameObj = NULL;
 	char * textRecord = NULL,
@@ -415,7 +429,7 @@ int assemblePass2(const char * filename, int prog_len) {
 	// initialization
 	initRegister(&registerSet);
 	textRecord = (char *) calloc (LEN_TEXT_RECORD, sizeof(char));
-	initFetchedInfoFromStr(&infoSetFromStr);
+	infoSetFromStr.symbol = infoSetFromStr.mnemonic = infoSetFromStr.operand = NULL;
 
 	filenameLst = strdup(filename);
 	filenameObj = strdup(filename);
@@ -701,7 +715,12 @@ void fetch_info_from_str(const char * str, symbMnemOper *infoSetFromStr) {
 	// XXX : 정규표현식으로 param2는 ., \n나오기 바로 전까지 받기
 	sscanf(str, "%s %s %[^.\n]", symbol, mnemonic, operand);
 
-	if (opcode_mnem(table_head[hash_func(mnemonic)], mnemonic) != -1) { // success to seach mnemonic & symbol also exists
+	printf("fetch_info_from_str!!\n");
+	printf("symbol : *%s* & mnemonic : *%s* & operand : *%s*\n", symbol, mnemonic, operand);
+
+	if (isDirective(mnemonic)
+		|| (opcode_mnem(table_head[hash_func(mnemonic)], mnemonic) != -1)) 
+	{ // success to seach mnemonic & symbol also exists
 		for (i = 0; operand[i] != 0 
 				&& operand[i] != ' ' 
 				&& operand[i] != '\t' 
@@ -715,7 +734,9 @@ void fetch_info_from_str(const char * str, symbMnemOper *infoSetFromStr) {
 	}
 
 	infoSetFromStr->symbol = NULL;
-	if (opcode_mnem(table_head[hash_func(symbol)], symbol) != -1 ) { // first param is mnemonic
+	if (isDirective(symbol)
+		|| (opcode_mnem(table_head[hash_func(symbol)], symbol) != -1 )) 
+	{ // first param(name is symbol) is mnemonic
 		sscanf(str, "%s %[^.\n]", mnemonic, operand);
 		for (i = 0; operand[i] != 0 
 				&& operand[i] != ' ' 
@@ -732,6 +753,8 @@ void fetch_info_from_str(const char * str, symbMnemOper *infoSetFromStr) {
 	free(symbol);
 	free(mnemonic);
 	free(operand);
+
+	printf("ㅠㅠㅠ\n");
 }
 
 int getLOCCTR(const char * str) {
@@ -739,6 +762,24 @@ int getLOCCTR(const char * str) {
 	sscanf(str, "%d", &num);
 
 	return num;
+}
+
+int isDirective(const char * str) {
+	if (!str) {
+		return 0;
+	}
+	if (!strcmp (str, "START")
+		|| !strcmp (str, "END")
+		|| !strcmp (str, "BYTE")
+		|| !strcmp (str, "WORD")
+		|| !strcmp (str, "RESB")
+		|| !strcmp (str, "RESW")
+		) 
+	{
+		return 1;
+	}
+	
+	return 0;
 }
 
 void initFetchedInfoFromStr(symbMnemOper * infoSetFromStr) {
@@ -959,21 +1000,52 @@ int TokenizeOperand(const char * operandStr, char ** operand) {
 	}
 }
 
-/********************************/
-/* functions for error handling */
-/********************************/
+// TODO : O(nlogn)인 sort로 바꿔 보자
+void sortSYMTABandPrint() {
+	int i, j, n = 0, int_tmp;
+	int idxMin = 0;
+	SYMTAB * follow = symbol_table,
+		   * array = NULL,
+		   * temp = (SYMTAB *) calloc (1, sizeof(SYMTAB));
 
-// return : 0 (normal)
-//			1 (error)
-int error_check_comma (int i, int comma_flag) {
-	if (!i && !comma_flag) { // first argv : no comma , normal case
-		return 0;
+	while (follow) {
+		n ++;
+		follow = follow->next;
 	}
-	else if (i && comma_flag == 1) {
-		return 0;
+
+	array = (SYMTAB *) calloc (n, sizeof(SYMTAB));
+
+	follow = symbol_table;
+	i = 0;
+	while (follow) {
+		array[i].LOCCTR = follow->LOCCTR;
+		array[i].symbol = strdup(follow->symbol);
+		i++;
+		follow = follow->next;
 	}
-	else {	// error case
-		return 1;
+
+	/* sort */
+	for (i = 0; i < n - 1; i ++) {
+		idxMin = i;
+		for (j = i + 1; j < n; j++) {
+			if (strcmp(array[idxMin].symbol, array[j].symbol) > 0) {
+				idxMin = j;
+			}
+		}
+		temp->LOCCTR = array[idxMin].LOCCTR;
+		temp->symbol = strdup(array[idxMin].symbol);
+		free(array[idxMin].symbol);
+
+		array[idxMin].LOCCTR = array[i].LOCCTR;
+		array[idxMin].symbol = strdup(array[i].symbol);
+		free(array[i].symbol);
+
+		array[i].symbol = strdup(temp->symbol);
+		array[i].LOCCTR = temp->LOCCTR;
+	}
+
+	for (i = 0; i < n; i++) {
+		printf("\t%s\t%d\n", array[i].symbol, array[i].LOCCTR);
 	}
 }
 
@@ -990,6 +1062,25 @@ int a2dec (const char * str, int * error_flag) {
 	}
 
 	return res;
+}
+
+
+/********************************/
+/* functions for error handling */
+/********************************/
+
+// return : 0 (normal)
+//			1 (error)
+int error_check_comma (int i, int comma_flag) {
+	if (!i && !comma_flag) { // first argv : no comma , normal case
+		return 0;
+	}
+	else if (i && comma_flag == 1) {
+		return 0;
+	}
+	else {	// error case
+		return 1;
+	}
 }
 
 int error_check_moreargv (const char * input_str, int idx_input_str) {
@@ -1016,7 +1107,6 @@ void deallocate_history (void) {
 		free(hist_tmp);
 	}
 }
-
 
 void deallocate_opcode (void) {
 	int i;
