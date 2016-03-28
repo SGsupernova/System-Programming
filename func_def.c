@@ -265,7 +265,7 @@ void command_symbol(void) {
 // return 1 means that a error occurs
 int assemblePass1(FILE * fpOrigin, int * prog_len) {
 	FILE * fpInter = fopen(INTERMEDIATE_FILENAME, "w");
-	int start_addr, LOCCTR = 0, line_num = 5;
+	int start_addr, LOCCTR = 0, line_num = 5, bogus = 0,
 		operand = 0, foramt = 0, error_flag = 0, cur_line_error_flag = 0;
 	char fileInputStr[150],
 		 *mnemonic = NULL, *symbol = NULL,
@@ -280,7 +280,7 @@ int assemblePass1(FILE * fpOrigin, int * prog_len) {
 		if (!isCommentLine(fileInputStr)) { // this line is not a comment line
 			break;
 		}
-		
+
 		fprintf(fpInter, "\t\t%s\n", LOCCTR, fileInputStr); // write listing line
 		line_num += 5;
 	}
@@ -310,7 +310,7 @@ int assemblePass1(FILE * fpOrigin, int * prog_len) {
 
 			// XXX : make a function searching SYMTAB(Complete)
 			// search SYMTAB for LABEL & there is same LABEL
-			if (searchSYMTAB(infoSetFromStr.symbol)) {
+			if (searchSYMTAB(infoSetFromStr.symbol, &bogus)) {
 				SEND_ERROR_MESSAGE("DUPLICATE SYMBOLY"); // duplicate symbol ERROR  
 				cur_line_error_flag = 1; // error(FOUND same symbol) // XXX : return 1 에서 error_flag setting
 				// TODO : =1 보다 | 1(bit operation)을 하는 것이 속도 향상 면에서 더 좋아 보임
@@ -361,6 +361,7 @@ int assemblePass1(FILE * fpOrigin, int * prog_len) {
 			}
 
 			error_flag = error_flag || cur_line_error_flag;
+			cur_line_error_flag = 0;
 
 			if (cur_line_error_flag) {
 				SEND_ERROR_LINE(line_num);
@@ -376,7 +377,7 @@ int assemblePass1(FILE * fpOrigin, int * prog_len) {
 
 			fgets(fileInputStr, 150, fpOrigin); // read next input line
 			line_num += 5;
-			
+
 			initFetchedInfoFromStr(&infoSetFromStr);
 			fetch_info_from_str(fileInputStr, &infoSetFromStr);
 		}
@@ -395,28 +396,33 @@ int assemblePass1(FILE * fpOrigin, int * prog_len) {
 int assemblePass2(const char * filename, int prog_len) {
 	FILE * fpInter = fopen(INTERMEDIATE_FILENAME, "r"),
 		 * fpLst, * fpObj;
-	int start_addr, LOCCTR = 0, line_num = 5;
+	int operand_addr = 0, LOCCTR = 0, line_num = 5, opcodeOfMnemonic = 0,
 		operand = 0, foramt = 0, error_flag = 0, cur_line_error_flag = 0;
-	char fileInputStr[150],
+	char fileInputStr[150], 
 		 * mnemonic = NULL, *symbol = NULL,
 		 exceptCommentStr[150] = {0,}; // TODO : mnemonic , symbol 등이 필요 없을 가능성이 높음, 추후에 보고 고칠 것.
 	char * filenameLst = NULL, *filenameObj = NULL;
+	char * textRecord = NULL,
+		 objectcode[LEN_OBJCODE] = {0,};
 	symbMnemOper infoSetFromStr;
+	struct reg registerSet;
 
 	// initialization
+	initRegister(&registerSet);
+	textRecord = (char *) calloc (LEN_TEXT_RECORD, sizeof(char));
 	initFetchedInfoFromStr(infoSetFromStr);
 
 	filenameLst = strdup(filename);
 	filenameObj = strdup(filename);
 	strcat(filenameLst, ".lst");
 	strcat(filenameObj, ".obj");
-	
+
 	fpLst = fopen(filenameLst, "w");
 	fpObj = fopen(filenameObj, "w");
 
 	free(filenameLst);
 	free(filenameObj);
-	
+
 	/* begin pass2 */
 	while (1) {
 		fgets(fileInputStr, 150, fpInter); // read input lines
@@ -428,6 +434,7 @@ int assemblePass2(const char * filename, int prog_len) {
 		line_num += 5;
 	}
 
+	// NOTE : In process "PASS2", we must use form like below
 	fetch_info_from_str(fileInputStr + START_RAW_STR_PASS2, &infoSetFromStr);
 
 	// if OPCODE = 'START'
@@ -436,90 +443,73 @@ int assemblePass2(const char * filename, int prog_len) {
 		fgets(fileInputStr + START_RAW_STR_PASS2, 150, fpInter);	// read next input line
 		line_num += 5;
 	}
-	
+
 	LOCCTR = getLOCCTR(fileInputStr);
 	// write Header record to object program
 	fprintf(fpObj, "H%6s%6X%6X\n", infoSetFromStr.symbol, LOCCTR, prog_len);
-	
-	// initialize first Text record
-	fprintf
 
+	// initialize first Text record
+	initTextRecord(textRecord);
 
 	while (infoSetFromStr.mnemonic == NULL || strcmp(infoSetFromStr.mnemonic, "END")) {
 		if (!isCommentLine(fileInputStr)) { // This is not a comment line.
-			fetch_info_from_str(fileInputStr, &infoSetFromStr);
+			fetch_info_from_str(fileInputStr + START_RAW_STR_PASS2, &infoSetFromStr);
 
-			// XXX : make a function searching SYMTAB(Complete)
-			// search SYMTAB for LABEL & there is same LABEL
-			if (searchSYMTAB(infoSetFromStr.symbol)) {
-				SEND_ERROR_MESSAGE("DUPLICATE SYMBOLY"); // duplicate symbol ERROR  
-				cur_line_error_flag = 1; // error(FOUND same symbol) // XXX : return 1 에서 error_flag setting
-				// TODO : =1 보다 | 1(bit operation)을 하는 것이 속도 향상 면에서 더 좋아 보임
-			}
-			else {
-				insert2SYMTAB(symbol, LOCCTR);
-			}
-			// TODO : 나중에 다시 sp 짤 때 operand 안들어오는 경우 제외 시키기
-			// search OPTAB for OPCODE
-			if ((format = format_mnem(table_head[hash_func(mnemonic)], mnemonic)) != -1) { // OPCODE FOUND
-				LOCCTR += format; // add {instruction length} to LOCCTR
-			}
-			else if (!strcmp(mnemonic, "WORD")) {
-				LOCCTR += 3;
-			}
-			else if (!strcmp(mnemonic, "RESW")) {
-				operand = strtoi(infoSetFromStr.operand, &error_flag, 10);
-				if (error_flag) {
-					SEND_ERROR_MESSAGE("RESW'S OPERAND");
-					cur_line_error_flag = 1;
+			if (opcode_mnem(table_head[hash_func(infoSetFromStr.mnemonic)], infoSetFromStr.mnemonic) != -1) {
+				// there is a symbol in OPERAND field 
+				if (searchSYMTAB(infoSetFromStr.operand, &LOCCTR)) {
+					// store symbol value as operand address
+					operand_addr = LOCCTR;
 				}
-				LOCCTR += 3 * operand;
-			}
-			else if (!strcmp(mnemonic, "RESB")) {
-				operand = strtoi(infoSetFromStr.operand, &error_flag, 10);
-
-				if (error_flag) {
-					SEND_ERROR_MESSAGE("RESB'S OPERAND");
-					cur_line_error_flag = 1;
+				else {
+					// store 0 as operand address
+					operand_addr = 0;
 				}
-				LOCCTR += operand;
-			}
-			else if (!strcmp(mnemonic, "BYTE")) {
-				operand = analyseByte(strBYTE);
-				if (operand == -1) {
-					SEND_ERROR_MESSAGE("BYTE'S OPERAND");
-					cur_line_error_flag = 1;
+				// assemble the object code instruction
+				opcodeOfMnemonic = opcode_mnem(table[hash_func(infoSetFromStr.mnemonic)], infoSetFromStr.mnemonic);
+				
+
+				if (infoSetFromStr.operand[0] == '@') { // indirect addressing
+					registerSet.n = 1;
 				}
-				LOCCTR += operand;
+				else if (infoSetFromStr.operand[0] == '#') { // immediate addressing
+					registerSet.i = 1;
+				}			
+				if ()
+
+				
 			}
-			else if (!strcmp(mnemonic, "BASE")) {}
-			else { // invalid operation code
-				SEND_ERROR_MESSAGE("INVALID OPERATION CODE");
-				cur_line_error_flag = 1;
+			// OPCODE = 'BYTE' or 'WORD'
+			else if ( (!strcmp(infoSetFromStr.mnemonic, "BYTE")) 
+					|| (!strcmp(infoSetFromStr.mnemonic, "WORD")) ) {			
+				// convert constant to object code
+				
 			}
 
-			error_flag = error_flag || cur_line_error_flag;
+			// object code will not fit into current Text record 
+			if () {
+				// write Text record to object program
 
-			if (cur_line_error_flag) {
-				SEND_ERROR_LINE(line_num);
+				// initialize new Text record	
+				initTextRecord(textRecord);
 			}
-
-			// write line to intermediate file
-			if (!isCommentLine(fileInputStr)) {
-				fprintf(fpInter,"%04X\t%s", LOCCTR, fileInputStr);
-			}
-			else {
-				fprintf(fpInter,"\t\t%s", fileInputStr);
-			}
-
-			fgets(fileInputStr, 150, fpOrigin); // read next input line
-			line_num += 5;
-			
-			initFetchedInfoFromStr(&infoSetFromStr);
-			fetch_info_from_str(fileInputStr, &infoSetFromStr);
+			// add object code to Text record
 		}
+		// write listing line
+
+		// read next input line
+
+		//initialization
+		initRegister(&registerSet);
 	}
 
+	// write last Text record to object program
+
+
+	// write End record to object program
+
+
+	// write last listing line
 
 
 
@@ -527,31 +517,7 @@ int assemblePass2(const char * filename, int prog_len) {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+	// DEALLOCATE
 
 
 	fclose(fpLst);
@@ -580,24 +546,25 @@ int analyseByte (const char * strBYTE, int * byteLength) {
 				else if ('A' <= strBYTE[i + j] && strBYTE[i + j] <= 'Z') {					
 					num *= 16;
 					num += strBYTE[i + j] - 'A';
-				else if ('0' <= strBYTE[i + j] && strBYTE[i + j] <= '9') {
-					num *= 16;
-					num += strBYTE[i + j] - '0';
-				}
-				else if (strBYTE[i + j] == '\'') {
-					if (j) { // ERROR : UNMATCHED HEX PAIR. EX) X'1FF'
+					else if ('0' <= strBYTE[i + j] && strBYTE[i + j] <= '9') {
+						num *= 16;
+						num += strBYTE[i + j] - '0';
+					}
+					else if (strBYTE[i + j] == '\'') {
+						if (j) { // ERROR : UNMATCHED HEX PAIR. EX) X'1FF'
+							SEND_ERROR_MESSAGE("FORMAT DOES NOT MATCH BYTE DIRECTIVE");
+							*byteLength = -1;
+							return -1;
+						}
+						else {
+							*byteLength = length;
+							return num;
+						}
+					}
+					else { // ERROR : FORMAT UNMATCHED. ex) X'1234 ,that is, there is no final '\''
 						SEND_ERROR_MESSAGE("FORMAT DOES NOT MATCH BYTE DIRECTIVE");
-						*byteLength = -1;
 						return -1;
 					}
-					else {
-						*byteLength = length;
-						return num;
-					}
-				}
-				else { // ERROR : FORMAT UNMATCHED. ex) X'1234 ,that is, there is no final '\''
-					SEND_ERROR_MESSAGE("FORMAT DOES NOT MATCH BYTE DIRECTIVE");
-					return -1;
 				}
 			}
 		}
@@ -622,12 +589,15 @@ int analyseByte (const char * strBYTE, int * byteLength) {
 	return -1;
 }
 
-int searchSYMTAB(const char * symbol) {
+// return : If there is the same symbol in symbol table(SYMTAB), return 1.
+//			otherwise - 0
+int searchSYMTAB(const char * symbol, int * LOCCTR) {
 	SYMTAB * search_sym = symbol_table;
 
 	while (search_sym) {
 		if (!strcmp(search_sym->symbol, symbol)) { // FOUND
-			return 0;
+			*LOCCTR = search_sym->LOCCTR;
+			return 1;
 		}
 		search_sym = search_sym->next;
 	}
@@ -707,6 +677,24 @@ void initFetchedInfoFromStr(symbMnemOper * infoSetFromStr) {
 	}
 }
 
+void initTextRecord (char * textRecord) {
+	int i;
+	textRecord[0] = 'T';
+
+	for (i = 1; i < LEN_TEXT_RECORD; i++) {
+		textRecord[i] = 0;
+	}
+}
+
+void initRegister(struct reg * registerSet) {
+	registerSet->n = 0;
+	registerSet->i = 0;
+	registerSet->b = 0;
+	registerSet->x = 0;
+	registerSet->p = 0;
+	registerSet->e = 0;
+}
+
 int hash_func(const char * mnemonic) {
 	int i = 0,sum = 0;
 	int len;
@@ -775,7 +763,7 @@ int isCommentLine(const char * str) {
 	else { // str is a comment line
 		return 1;
 	}
-	
+
 }
 
 int format_mnem(op_list * table, const char *mnemonic) {
@@ -837,7 +825,7 @@ int strtoi(const char * str, int* error_flag, int exponential) {
 		}
 		else if (x_flag && str[i] == 0) {
 			return res
-				
+
 				;
 		}
 		// error case
