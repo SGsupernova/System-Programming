@@ -396,14 +396,16 @@ int assemblePass1(FILE * fpOrigin, int * prog_len) {
 int assemblePass2(const char * filename, int prog_len) {
 	FILE * fpInter = fopen(INTERMEDIATE_FILENAME, "r"),
 		 * fpLst, * fpObj;
-	int operand_addr = 0, LOCCTR = 0, line_num = 5, opcodeOfMnemonic = 0,
-		operand = 0, foramt = 0, error_flag = 0, cur_line_error_flag = 0;
+	int operand_addr = 0, LOCCTR = 0, disp = 0, cur_line_LOCCTR = 0,
+		line_num = 5, opcodeOfMnemonic = 0,
+		foramt = 0, error_flag = 0, cur_line_error_flag = 0;
 	char fileInputStr[150], 
 		 * mnemonic = NULL, *symbol = NULL,
 		 exceptCommentStr[150] = {0,}; // TODO : mnemonic , symbol 등이 필요 없을 가능성이 높음, 추후에 보고 고칠 것.
 	char * filenameLst = NULL, *filenameObj = NULL;
 	char * textRecord = NULL,
-		 objectcode[LEN_OBJCODE] = {0,};
+		 objectcode[LEN_OBJCODE] = {0,},
+		 operand[2][LEN_OPERAND] = {0,};
 	symbMnemOper infoSetFromStr;
 	struct reg registerSet;
 
@@ -467,23 +469,36 @@ int assemblePass2(const char * filename, int prog_len) {
 				}
 				// assemble the object code instruction
 				opcodeOfMnemonic = opcode_mnem(table[hash_func(infoSetFromStr.mnemonic)], infoSetFromStr.mnemonic);
-				
 
-				if (infoSetFromStr.operand[0] == '@') { // indirect addressing
-					registerSet.n = 1;
+				/*
+
+				   if (infoSetFromStr.operand[0] == '@') { // indirect addressing
+				   registerSet.n = 1;
+				   }
+				   else if (infoSetFromStr.operand[0] == '#') { // immediate addressing
+				   registerSet.i = 1;
+				   }
+
+				   if ()
+				// pc relative
+				fscanf(fpInter, "%04X", &cur_line_LOCCTR); // pc : cur_line_LOCCTR + 3
+				disp = operand_addr - (cur_line_LOCCTR + 3);
+				if (-2048 <= operand_addr && operand_addr <= 2047) {
+
+
 				}
-				else if (infoSetFromStr.operand[0] == '#') { // immediate addressing
-					registerSet.i = 1;
-				}			
-				if ()
+				else if () {
 
-				
+
+				}
+				*/
+
 			}
 			// OPCODE = 'BYTE' or 'WORD'
 			else if ( (!strcmp(infoSetFromStr.mnemonic, "BYTE")) 
 					|| (!strcmp(infoSetFromStr.mnemonic, "WORD")) ) {			
 				// convert constant to object code
-				
+
 			}
 
 			// object code will not fit into current Text record 
@@ -501,6 +516,10 @@ int assemblePass2(const char * filename, int prog_len) {
 
 		//initialization
 		initRegister(&registerSet);
+		for (i = 0; i < LEN_OPERAND; i++) {  // initialize operands
+			operand[0][i] = operand[1][i] = 0;
+		}
+
 	}
 
 	// write last Text record to object program
@@ -842,6 +861,36 @@ int strtoi(const char * str, int* error_flag, int exponential) {
 	return minus_flag * res;
 }
 
+// return 0 : there is no error
+//		  0 : there are errors
+int TokenizeOperand(const char * operandStr, char ** operand) {
+	int i = 0, idx = 0, last_word = 0, comma_flag = 0, order = 0;
+
+	for (; operandStr[i] != 0; i++) {
+		if (operandStr[i] != ' ' 
+				&& operandStr[i] != ',' 
+				&& operandStr[i] != '\t' 
+				&& operandStr[i] != '\n'
+		   ) 
+		{
+			last_word = i;
+		}
+		if (operandStr[i] == ',') {
+			comma_flag = 1;
+		}
+	}
+	operandStr[last_word + 1] = 0;
+
+	for (i = 0; operandStr[i] != 0; i++) {
+		if (operandStr[i] != ',' && operandStr[i] != ' ') {
+			operand[order][idx++] = operandStr[i];
+		}
+		else if (operandStr[i] == ',') {
+			order ++;
+			idx = 0;
+		}
+	}
+}
 
 /********************************/
 /* functions for error handling */

@@ -13,7 +13,7 @@
 #define MAX_LEN_COMMAND 10
 #define NUM_OF_OPCODES 58
 #define LEN_MNEMONIC 6#define LEN_SYMBOL 10
-#define LEN_OPERAND 40
+#define LEN_OPERAND 64
 #define MEMORY_SIZE 0x100000
 #define SEND_ERROR_MESSAGE(str) printf("\"%s\" ERROR OCCUR!!\n", str)
 #define SEND_ERROR_LINE(number) printf("%d LINE IS ERROR OCCUR\n", number)
@@ -103,7 +103,9 @@ void initTextRecord(char * textRecord);
 void initRegister(struct reg * registerSet);
 
 int analyseBYTE(const char * strBYTE, int * byteLength);
-int isCommentLine(const char * str);
+int isCommentLine(const char * str, char ** operand);
+
+int TokenizeOperand(const char * operandStr, char ** operand);
 
 // TODO : DELETE SYMBOL TABLE FUNCTION
 
