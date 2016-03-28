@@ -5,11 +5,11 @@ int main () {
 	char input_str[MAX_LEN_INPUT],
 		 command[MAX_LEN_COMMAND],
 		 argv[3][MAX_LEN_INPUT],
-		 mnemonic[LEN_MNEMONIC], trash[5];
+		 *mnemonic = (char *) calloc(LEN_MNEMONIC, sizeof(char));
 	int i, j,
 		error_flag, comma_flag,
 		idx_input_str, idx_argv,
-		opcode;
+		opcode, format;
 	hist_list * new_hist_elem = NULL;
 	history_head = (hist_list *) calloc(1, sizeof(hist_list));
 
@@ -22,12 +22,12 @@ int main () {
 	// opcode에 관한 정보를 받고 linked list에 저장한다.
 	i = NUM_OF_OPCODES;
 	while (i--) {
-		fscanf(fp, "%02x %s %d%*s\n", &opcode, mnemonic, trash);
+		fscanf(fp, "%02X %s %d%*s\n", &opcode, mnemonic, &format);
 		// TODO : opcode table에서 linking 시켜 op_list 를 굳이 새로 만들지 않게 할 것 && 이 부분도 함수로 moduling 할 것 && trash -> format && mnemonic 바로 받는 것도 생각해 보기
-		make_linking_table(&table_head[hash_func(mnemonic)], opcode, mnemonic, trash);
+		make_linking_table(&table_head[hash_func(mnemonic)], opcode, mnemonic, format);
 		opcode_table[i - 1].opcode = opcode;
-		opcode_table[i - 1].format = trash;
-		opcode_table[i - 1].mnemonic = strdup(mnemonic);
+		opcode_table[i - 1].format = format;
+		strcpy(opcode_table[i - 1].mnemonic, mnemonic);
 	}
 
 

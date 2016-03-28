@@ -260,13 +260,14 @@ void command_type(const char * filename, int * error_flag) {
 
 void command_symbol(void) {
 
+	return ;
 }
 
 // return 1 means that a error occurs
 int assemblePass1(FILE * fpOrigin, int * prog_len) {
 	FILE * fpInter = fopen(INTERMEDIATE_FILENAME, "w");
 	int start_addr, LOCCTR = 0, line_num = 5, bogus = 0,
-		operand = 0, foramt = 0, error_flag = 0, cur_line_error_flag = 0;
+		operand = 0, format = 0, error_flag = 0, cur_line_error_flag = 0;
 	char fileInputStr[150],
 		 *mnemonic = NULL, *symbol = NULL,
 		 exceptCommentStr[150] = {0,}; // TODO : mnemonic , symbol 등이 필요 없을 가능성이 높음, 추후에 보고 고칠 것.
@@ -281,7 +282,7 @@ int assemblePass1(FILE * fpOrigin, int * prog_len) {
 			break;
 		}
 
-		fprintf(fpInter, "\t\t%s\n", LOCCTR, fileInputStr); // write listing line
+		fprintf(fpInter, "%04X\t%s\n", LOCCTR, fileInputStr); // write listing line
 		line_num += 5;
 	}
 	fetch_info_from_str(fileInputStr, &infoSetFromStr);
@@ -347,9 +348,9 @@ int assemblePass1(FILE * fpOrigin, int * prog_len) {
 				LOCCTR += operand;
 			}
 			else if (!strcmp(mnemonic, "BYTE")) {
-				operand = analyseByte(strBYTE);
+				operand = analyseByte(infoSetFromStr.operand);
 				if (operand == -1) {
-					SEND_ERROR_MESSAGE("BYTE'S OPERAND");
+					SEND_ERROR_MESSAGE("BYTE'S OPERAND NOT MATCHING");
 					cur_line_error_flag = 1;
 				}
 				LOCCTR += operand;
@@ -384,7 +385,8 @@ int assemblePass1(FILE * fpOrigin, int * prog_len) {
 	}
 
 	// write last line to intermediate file
-	fputs(fpInter,"%04X\t%s", LOCCTR, fileInputStr);
+	fprintf(fpInter,"%04X\t%s", LOCCTR, fileInputStr);
+
 	// save (LOCCTR - starting address) as program length
 	*prog_len = LOCCTR - start_addr;
 
@@ -397,8 +399,9 @@ int assemblePass2(const char * filename, int prog_len) {
 	FILE * fpInter = fopen(INTERMEDIATE_FILENAME, "r"),
 		 * fpLst, * fpObj;
 	int operand_addr = 0, LOCCTR = 0, disp = 0, cur_line_LOCCTR = 0,
-		line_num = 5, opcodeOfMnemonic = 0,
-		foramt = 0, error_flag = 0, cur_line_error_flag = 0;
+		line_num = 5, opcodeOfMnemonic = 0, len_mnem = 0, i = 0,
+		foramt = 0, error_flag = 0, cur_line_error_flag = 0, start_LOCCTR = 0, first_LOCCTR = 0;
+	int op_temp, temp,hex;
 	char fileInputStr[150], 
 		 * mnemonic = NULL, *symbol = NULL,
 		 exceptCommentStr[150] = {0,}; // TODO : mnemonic , symbol 등이 필요 없을 가능성이 높음, 추후에 보고 고칠 것.
@@ -412,7 +415,7 @@ int assemblePass2(const char * filename, int prog_len) {
 	// initialization
 	initRegister(&registerSet);
 	textRecord = (char *) calloc (LEN_TEXT_RECORD, sizeof(char));
-	initFetchedInfoFromStr(infoSetFromStr);
+	initFetchedInfoFromStr(&infoSetFromStr);
 
 	filenameLst = strdup(filename);
 	filenameObj = strdup(filename);
@@ -432,7 +435,7 @@ int assemblePass2(const char * filename, int prog_len) {
 			break;
 		}
 
-		fprintf(fpLst, "\t\t%s\n", LOCCTR, fileInputStr); // write listing line
+		fprintf(fpLst, "%03d%04X\t%s\n", line_num, LOCCTR, fileInputStr); // write listing line
 		line_num += 5;
 	}
 
@@ -446,11 +449,13 @@ int assemblePass2(const char * filename, int prog_len) {
 		line_num += 5;
 	}
 
-	LOCCTR = getLOCCTR(fileInputStr);
+	// first_LOCCTR is address of first executable instruction in object program(hex)
+	first_LOCCTR = start_LOCCTR = LOCCTR = getLOCCTR(fileInputStr);
 	// write Header record to object program
-	fprintf(fpObj, "H%6s%6X%6X\n", infoSetFromStr.symbol, LOCCTR, prog_len);
+	fprintf(fpObj, "H%-6s%6X%6X\n", infoSetFromStr.symbol, LOCCTR, prog_len);
 
 	// initialize first Text record
+	initObjectCode(objectcode);
 	initTextRecord(textRecord);
 
 	while (infoSetFromStr.mnemonic == NULL || strcmp(infoSetFromStr.mnemonic, "END")) {
@@ -468,7 +473,7 @@ int assemblePass2(const char * filename, int prog_len) {
 					operand_addr = 0;
 				}
 				// assemble the object code instruction
-				opcodeOfMnemonic = opcode_mnem(table[hash_func(infoSetFromStr.mnemonic)], infoSetFromStr.mnemonic);
+				opcodeOfMnemonic = opcode_mnem(table_head[hash_func(infoSetFromStr.mnemonic)], infoSetFromStr.mnemonic);
 
 				/*
 
@@ -492,53 +497,95 @@ int assemblePass2(const char * filename, int prog_len) {
 
 				}
 				*/
-
 			}
 			// OPCODE = 'BYTE' or 'WORD'
-			else if ( (!strcmp(infoSetFromStr.mnemonic, "BYTE")) 
-					|| (!strcmp(infoSetFromStr.mnemonic, "WORD")) ) {			
+			else if (!strcmp(infoSetFromStr.mnemonic, "BYTE")) {
 				// convert constant to object code
+				len_mnem = strlen(infoSetFromStr.mnemonic);
 
+				for (i = 0; i < len_mnem; i += 2) {
+					temp = infoSetFromStr.mnemonic[i / 2] / 16;
+					if (0 <= temp && temp <= 9) {
+						objectcode[i] = temp + '0';
+					}
+					else { // 10 ~ 16 (A ~ F)
+						objectcode[i] = temp - 10 + 'A';
+					}
+
+
+					temp = infoSetFromStr.mnemonic[i / 2] % 16;
+					if (0 <= temp && temp <= 9) {
+						objectcode[i] = temp + '0';
+					}
+					else { // 10 ~ 16 (A ~ F)
+						objectcode[i] = temp - 10 + 'A';
+					}
+				}
 			}
+			else if (!strcmp(infoSetFromStr.mnemonic, "WORD")) {			
+				op_temp = a2dec(infoSetFromStr.operand, &error_flag);
+				if (error_flag) {
+					SEND_ERROR_MESSAGE("WORD OPERAND");
+					SEND_ERROR_LINE(line_num);
+					cur_line_error_flag = 1;
+				}
+				objectcode[0] = objectcode[1] = '0';
 
+				// make objectcode
+				hex = 4096;
+				for (i = 2; i < 6; i++) {
+					temp = (op_temp / (hex/16)) % hex;
+
+					if (0 <= temp && temp <= 9) {
+						objectcode[i] = temp + '0';
+					}
+					else { // 10 ~ 16 (A ~ F)
+						objectcode[i] = temp - 10 + 'A';
+					}
+				}
+			}
 			// object code will not fit into current Text record 
-			if () {
+			if (strlen(objectcode) + strlen(textRecord) >= LEN_TEXT_RECORD) {
 				// write Text record to object program
+				fprintf(fpObj, "T%6X%2X%s\n", start_LOCCTR, (unsigned int)strlen(textRecord), textRecord);
 
-				// initialize new Text record	
+				// initialize new Text record
 				initTextRecord(textRecord);
+				start_LOCCTR = LOCCTR;
 			}
 			// add object code to Text record
+			strcat(textRecord, objectcode);
 		}
 		// write listing line
+		fprintf(fpLst, "%3d\t%s\t%s\n", line_num, fileInputStr, objectcode);
 
 		// read next input line
+		fgets(fileInputStr, 150, fpInter); // read input lines
+		line_num += 5;
 
 		//initialization
 		initRegister(&registerSet);
+		initObjectCode(objectcode);
 		for (i = 0; i < LEN_OPERAND; i++) {  // initialize operands
 			operand[0][i] = operand[1][i] = 0;
 		}
-
 	}
 
 	// write last Text record to object program
-
+	fprintf(fpObj, "T%6X %2X %s \n", start_LOCCTR, (unsigned int)strlen(textRecord), textRecord);
 
 	// write End record to object program
-
+	fprintf(fpObj, "E%6X", first_LOCCTR);
 
 	// write last listing line
+	fprintf(fpLst, "%3d\t%s", line_num, fileInputStr);
 
 
 
 
 
 
-
-	// DEALLOCATE
-
-
+	// TODO : DEALLOCATE
 	fclose(fpLst);
 	fclose(fpObj);
 	fclose(fpInter);
@@ -565,25 +612,25 @@ int analyseByte (const char * strBYTE, int * byteLength) {
 				else if ('A' <= strBYTE[i + j] && strBYTE[i + j] <= 'Z') {					
 					num *= 16;
 					num += strBYTE[i + j] - 'A';
-					else if ('0' <= strBYTE[i + j] && strBYTE[i + j] <= '9') {
-						num *= 16;
-						num += strBYTE[i + j] - '0';
-					}
-					else if (strBYTE[i + j] == '\'') {
-						if (j) { // ERROR : UNMATCHED HEX PAIR. EX) X'1FF'
-							SEND_ERROR_MESSAGE("FORMAT DOES NOT MATCH BYTE DIRECTIVE");
-							*byteLength = -1;
-							return -1;
-						}
-						else {
-							*byteLength = length;
-							return num;
-						}
-					}
-					else { // ERROR : FORMAT UNMATCHED. ex) X'1234 ,that is, there is no final '\''
+				}
+				else if ('0' <= strBYTE[i + j] && strBYTE[i + j] <= '9') {
+					num *= 16;
+					num += strBYTE[i + j] - '0';
+				}
+				else if (strBYTE[i + j] == '\'') {
+					if (j) { // ERROR : UNMATCHED HEX PAIR. EX) X'1FF'
 						SEND_ERROR_MESSAGE("FORMAT DOES NOT MATCH BYTE DIRECTIVE");
+						*byteLength = -1;
 						return -1;
 					}
+					else {
+						*byteLength = length;
+						return num;
+					}
+				}
+				else { // ERROR : FORMAT UNMATCHED. ex) X'1234 ,that is, there is no final '\''
+					SEND_ERROR_MESSAGE("FORMAT DOES NOT MATCH BYTE DIRECTIVE");
+					return -1;
 				}
 			}
 		}
@@ -624,7 +671,7 @@ int searchSYMTAB(const char * symbol, int * LOCCTR) {
 	return 0;
 }
 
-void insert2SYMTAB (const char * symbol, int LOCCTR) {
+void insert2SYMTAB (char * symbol, int LOCCTR) {
 	SYMTAB * new_sym = symbol_table; // TODO : change a global variable to parameter(structure)
 	if (new_sym) {
 		while (new_sym->next) {
@@ -644,6 +691,7 @@ void insert2SYMTAB (const char * symbol, int LOCCTR) {
 // XXX : 이름 바꾸기 fetch info form str, 전달 인자는 struct로 관리
 void fetch_info_from_str(const char * str, symbMnemOper *infoSetFromStr) {
 	char * symbol, * mnemonic, * operand;
+	int i = 0;
 
 	// XXX : set symbol length and operand length
 	symbol = (char *) calloc(LEN_SYMBOL, sizeof(char));
@@ -654,6 +702,12 @@ void fetch_info_from_str(const char * str, symbMnemOper *infoSetFromStr) {
 	sscanf(str, "%s %s %[^.\n]", symbol, mnemonic, operand);
 
 	if (opcode_mnem(table_head[hash_func(mnemonic)], mnemonic) != -1) { // success to seach mnemonic & symbol also exists
+		for (i = 0; operand[i] != 0 
+				&& operand[i] != ' ' 
+				&& operand[i] != '\t' 
+				&& operand[i] != '\n'; i++ );
+		operand[i] = 0;
+
 		infoSetFromStr->symbol = symbol;
 		infoSetFromStr->mnemonic = mnemonic;
 		infoSetFromStr->operand = operand;
@@ -663,18 +717,25 @@ void fetch_info_from_str(const char * str, symbMnemOper *infoSetFromStr) {
 	infoSetFromStr->symbol = NULL;
 	if (opcode_mnem(table_head[hash_func(symbol)], symbol) != -1 ) { // first param is mnemonic
 		sscanf(str, "%s %[^.\n]", mnemonic, operand);
+		for (i = 0; operand[i] != 0 
+				&& operand[i] != ' ' 
+				&& operand[i] != '\t' 
+				&& operand[i] != '\n'; i++ );
+		operand[i] = 0;
+
 		infoSetFromStr->mnemonic = mnemonic;
 		infoSetFromStr->operand = operand;
 		free(symbol);
 		return ;
 	}
 
+	free(symbol);
 	free(mnemonic);
 	free(operand);
 }
 
 int getLOCCTR(const char * str) {
-	int num;
+	int num = 1;
 	sscanf(str, "%d", &num);
 
 	return num;
@@ -696,11 +757,18 @@ void initFetchedInfoFromStr(symbMnemOper * infoSetFromStr) {
 	}
 }
 
+void initObjectCode (char * objectcode) {
+	int i;
+
+	for (i = 0; i < LEN_OBJCODE; i++) {
+		objectcode[i] = 0;
+	}
+}
+
 void initTextRecord (char * textRecord) {
 	int i;
-	textRecord[0] = 'T';
 
-	for (i = 1; i < LEN_TEXT_RECORD; i++) {
+	for (i = 0; i < LEN_TEXT_RECORD; i++) {
 		textRecord[i] = 0;
 	}
 }
@@ -732,7 +800,7 @@ int hash_func(const char * mnemonic) {
 
 
 // XXX : 더 효율적으로 돌아가게 생각해보기
-void make_linking_table(op_list ** table_addr, int opcode, const char * mnemonic, int foramt) {
+void make_linking_table(op_list ** table_addr, int opcode, const char * mnemonic, int format) {
 	op_list * new_op = *table_addr;
 
 	while (new_op->next) 
@@ -822,7 +890,7 @@ int strtoi(const char * str, int* error_flag, int exponential) {
 	// case : 0x123 or 0X123
 	else if (str[0] == '0' && (str[1] == 'x' || str[1] == 'X')) {
 		if (exponential != 16) {
-			error_flag = 1;
+			*error_flag = 1;
 			return -1;
 		}
 		i += 2;
@@ -879,7 +947,6 @@ int TokenizeOperand(const char * operandStr, char ** operand) {
 			comma_flag = 1;
 		}
 	}
-	operandStr[last_word + 1] = 0;
 
 	for (i = 0; operandStr[i] != 0; i++) {
 		if (operandStr[i] != ',' && operandStr[i] != ' ') {
@@ -910,6 +977,20 @@ int error_check_comma (int i, int comma_flag) {
 	}
 }
 
+int a2dec (const char * str, int * error_flag) {
+	int i = 0, res = 0;
+
+	for (; str[i] != 0; i++) {
+		if (('0' <= str[i] && str[i] <= '9')) {
+			*error_flag = 1; // error
+			return 0;
+		}
+		res *= 10;
+		res += str[i] - '0';
+	}
+
+	return res;
+}
 
 int error_check_moreargv (const char * input_str, int idx_input_str) {
 	while (input_str[idx_input_str] != 0) {
