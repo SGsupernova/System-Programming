@@ -3,4 +3,5 @@ a.out*
 *.[oa]
 *.gch
 *.swp
-*.asm
+*.lst
+*.obj

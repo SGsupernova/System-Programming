@@ -262,6 +262,9 @@ int main () {
 				SEND_ERROR_MESSAGE("FORMAT DOES NOT MATCH THIS COMMAND");
 				continue;
 			}
+			if (strcmp(argv[0] + strlen(argv[0]) - 4, ".asm")) {
+				SEND_ERROR_MESSAGE("THIS IS NOT .asm file");
+			}
 			command_type(argv[0], &error_flag);
 
 			if (error_flag) {
@@ -275,7 +278,7 @@ int main () {
 				SEND_ERROR_MESSAGE("FORMAT DOES NOT MATCH THIS COMMAND");
 				continue;
 			}
-			if (!symbol_table) {
+			if (!complete_table) {
 				SEND_ERROR_MESSAGE("THERE IS NO SYMBOL TABLE");
 				continue;
 			}

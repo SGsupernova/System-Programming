@@ -22,6 +22,7 @@
 #define INTERMEDIATE_FILENAME "inter.asm"
 #define LEN_TEXT_RECORD 61
 #define LEN_OBJCODE 61
+#define LEN_DISPSTR 14
 
 // TODO : global variable 묶기
 typedef struct _HIST{
@@ -77,7 +78,8 @@ struct reg {
 };
 
 OPTAB opcode_table[NUM_OF_OPCODES];
-SYMTAB *symbol_table;
+SYMTAB * symbol_table,
+	   * complete_table;
 op_list *table_head[20];
 hist_list *history_head;
 unsigned char memory[MEMORY_SIZE]; // 2^20
@@ -104,9 +106,9 @@ int format_mnem(op_list * table, const char *mnemonic);
 
 int strtoi(const char * str, int* error_flag, int exponential);
 
-int assemblePass1(FILE * fpOrigin, int * prog_len, int * base);
+int assemblePass1(FILE * fpOrigin, int * prog_len);
 // TODO : For using same fetch function used assemblePass1, make a function that find a  location except LOCCTR
-int assemblePass2 (const char * filename, int prog_len, int base);
+int assemblePass2 (const char * filename, int prog_len);
 
 int searchSYMTAB(const char * symbol, int * LOCCTR);
 void insert2SYMTAB(char * symbol, int LOCCTR);
@@ -116,15 +118,14 @@ void initFetchedInfoFromStr(symbMnemOper * infoSetFromStr);
 void initObjectCode (char * objectcode);
 void initTextRecord (char * textRecord);
 void initAddressingMode(struct addressingMode * modeFlag);
-void initRegiter(struct reg * regSet);
+void initRegister(struct reg * regSet);
 
 int analyseBYTE(const char * strBYTE, int * byteLength);
 int isCommentLine(const char * str);
 int isDirective(const char * str);
-int isRegister(const char * operand);
+int isRegisterContainWhat(const char * operand, struct reg regSet, int * infoInReg);
 
 int TokenizeOperand(const char * operandStr, char ** operand);
-int isIndexMode(const char * str);
 
 void sortSYMTABandPrint();
 
