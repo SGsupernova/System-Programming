@@ -203,7 +203,7 @@ void command_opcodelist(void) {
 
 void command_assemble(const char * filename, int * error_flag) {
 	FILE * fpOrigin = fopen(filename, "r");
-	int prog_len = 0;
+	int prog_len = 0, base = 0;
 
 	// TODO : check filename is .asm and we turn over a parameter whose .asm is removed 
 
@@ -214,14 +214,14 @@ void command_assemble(const char * filename, int * error_flag) {
 	}
 
 	// get intermediate file through Algorithm for Pass1 of Assembler
-	*error_flag = assemblePass1(fpOrigin, &prog_len);
+	*error_flag = assemblePass1(fpOrigin, &prog_len, &base);
 	fclose(fpOrigin);
 	if (*error_flag) {
 		return ;
 	}
 
 	// get list file, object file, and 
-	if (*error_flag = assemblePass2(filename, prog_len)) {
+	if (*error_flag = assemblePass2(filename, prog_len, base)) {
 		return ;
 	}
 }
@@ -263,11 +263,11 @@ void command_symbol(void) {
 }
 
 // return 1 means that a error occurs
-int assemblePass1(FILE * fpOrigin, int * prog_len) {
+int assemblePass1(FILE * fpOrigin, int * prog_len, int * base) {
 	FILE * fpInter = fopen(INTERMEDIATE_FILENAME, "w");
 	int start_addr, LOCCTR = 0, line_num = 5, bogus = 0, format_store[2] = {0,},
 		operand = 0, format = 0, error_flag = 0, cur_line_error_flag = 0, byteLength = 0,
-		prior_LOCCTR = 0;
+		prior_LOCCTR = 0, *base = 0;
 	char fileInputStr[150],
 		 exceptCommentStr[150] = {0,}; // TODO : mnemonic , symbol 등이 필요 없을 가능성이 높음, 추후에 보고 고칠 것.
 	symbMnemOper infoSetFromStr;
@@ -304,7 +304,6 @@ int assemblePass1(FILE * fpOrigin, int * prog_len) {
 		fgets(fileInputStr, 150, fpOrigin);	// read next input line
 		fetch_info_from_str(fileInputStr, &infoSetFromStr);
 		line_num += 5;
-
 	}
 	else {
 		LOCCTR = start_addr = 0;
@@ -381,6 +380,10 @@ int assemblePass1(FILE * fpOrigin, int * prog_len) {
 			SEND_ERROR_LINE(line_num);
 		}
 
+		if (infoSetFromStr.mnemonic & !strcmp(infoSetFromStr.mnemonic, "LDB")) {
+			*base = prior_LOCCTR;
+		}
+
 		// write line to intermediate file
 		if (!isCommentLine(fileInputStr) && !(infoSetFromStr.mnemonic && !strcmp(infoSetFromStr.mnemonic, "BASE")) ) {
 			fprintf(fpInter,"%04X\t%s", prior_LOCCTR, fileInputStr);
@@ -409,24 +412,28 @@ int assemblePass1(FILE * fpOrigin, int * prog_len) {
 	return error_flag;
 }
 
-int assemblePass2(const char * filename, int prog_len) {
+int assemblePass2(const char * filename, int prog_len, int base) {
 	FILE * fpInter = fopen(INTERMEDIATE_FILENAME, "r"),
+		 * fpInterTemp = fopen(INTERMEDIATE_FILENAME, "r");
 		 * fpLst, * fpObj;
 	int operand_addr = 0, LOCCTR = 0, disp = 0, cur_line_LOCCTR = 0,
-		line_num = 5, opcodeOfMnemonic = 0, len_mnem = 0, i = 0,
-		foramt = 0, error_flag = 0, cur_line_error_flag = 0, start_LOCCTR = 0, first_LOCCTR = 0;
+		line_num = 5, opcodeOfMnemonic = 0, len_mnem = 0, i = 0, format2r[2] = {0,}, i,
+		format = 0, error_flag = 0, cur_line_error_flag = 0, start_LOCCTR = 0, first_LOCCTR = 0, objectcode_num = 0,
+		bogus = 0;
 	int op_temp, temp,hex, temp_store[2];
-	char fileInputStr[150], 
+	char fileInputStr[150] = {0,}, fileInputStrTemp[150], = {0},
 		 exceptCommentStr[150] = {0,}; // TODO : mnemonic , symbol 등이 필요 없을 가능성이 높음, 추후에 보고 고칠 것.
 	char * filenameLst = NULL, *filenameObj = NULL;
 	char * textRecord = NULL,
 		 objectcode[LEN_OBJCODE] = {0,},
-		 operand[2][LEN_OPERAND] = {0,};
+		 **operand = NULL;
 	symbMnemOper infoSetFromStr;
-	struct reg registerSet;
+	struct addressingMode modeFlag;
+	struct reg regSet;
 
 	// initialization
-	initRegister(&registerSet);
+	initAddressingMode(&modeFlag);
+	initRegiter(&regSet);
 	textRecord = (char *) calloc (LEN_TEXT_RECORD, sizeof(char));
 	infoSetFromStr.symbol = infoSetFromStr.mnemonic = infoSetFromStr.operand = NULL;
 
@@ -441,11 +448,15 @@ int assemblePass2(const char * filename, int prog_len) {
 	free(filenameLst);
 	free(filenameObj);
 
-
+	operand = (char **) calloc (2, sizeof(char *));
+	operand[0] = (char *) calloc (LEN_OPERAND, sizeof(char));
+	operand[1] = (char *) calloc (LEN_OPERAND, sizeof(char));
 
 	/* begin pass2 */
 	while (1) {
 		fgets(fileInputStr, 150, fpInter); // read input lines
+		fgets(fileInputStrTemp, 150, fpInterTemp);
+		fgets(fileInputStrTemp, 150, fpInterTemp);
 		fileInputStr[strlen(fileInputStr) - 1] = 0;
 
 		if (!isCommentLine(fileInputStr)) { // this line is not a comment line
@@ -456,7 +467,6 @@ int assemblePass2(const char * filename, int prog_len) {
 	}
 
 
-
 	// NOTE : In process "PASS2", we must use form like below
 	fetch_info_from_str(fileInputStr + START_RAW_STR_PASS2, &infoSetFromStr);
 
@@ -464,6 +474,8 @@ int assemblePass2(const char * filename, int prog_len) {
 	if (!strcmp(infoSetFromStr.mnemonic, "START")) {
 		fprintf(fpLst, "%03d\t%s\n", line_num, fileInputStr); // write listing line
 		fgets(fileInputStr, 150, fpInter);	// read next input line
+		fgets(fileInputStrTemp, 150, fpInterTemp);
+		
 		fileInputStr[strlen(fileInputStr) - 1] = 0;
 		line_num += 5;
 	}
@@ -485,6 +497,9 @@ int assemblePass2(const char * filename, int prog_len) {
 			temp_store[0] = opcode_mnem(table_head[hash_func(infoSetFromStr.mnemonic)], infoSetFromStr.mnemonic);
 			temp_store[1] = opcode_mnem(table_head[hash_func(infoSetFromStr.mnemonic + 1)], infoSetFromStr.mnemonic + 1);
 			if(temp_store[0] != -1 || temp_store[1] != -1) {
+				// initialization
+				objectcode_num = 0;
+/*
 				// there is a symbol in OPERAND field 
 				if (searchSYMTAB(infoSetFromStr.operand, &LOCCTR)) {
 					// store symbol value as operand address
@@ -494,29 +509,94 @@ int assemblePass2(const char * filename, int prog_len) {
 					// store 0 as operand address
 					operand_addr = 0;
 				}
-				// assemble the object code instruction
+*/
+				// get format and opcode of mnemonic
+				if (infoSetFromStr.mnemonic[0] != '+') {
+					format = format_mnem(table_head[hash_func(infoSetFromStr.mnemonic)], mnemonic);
+				}
+				else {
+					format = format_mnem(table_head[hash_func(infoSetFromStr.mnemonic + 1)], mnemonic + 1);
+				}
 				opcodeOfMnemonic = opcode_mnem(table_head[hash_func(infoSetFromStr.mnemonic)], infoSetFromStr.mnemonic);
+				
+				
+				if (fomat == -1) { // error
+					cur_line_error_flag = 1;
+				}
+				else if (format == 1) { // format 1
+					sprintf(objectcode, "%2X", opcodeOfMnemonic);
+				}
+				else if (format == 2) { // format 2
+					TokenizeOperand(infoSetFromStr.operand, operand);
+					
+					for (i = 0; i < 2; i++) {
+						if (searchSYMTAB(operand[i], &bogus)) {
+							
+						}
+						else if (strtoi(operand[i], &cur_line_error_flag, 10) != -1) {
+						
+						}
+						else {
+							
+						}
+					}
 
+				}
+				else if (format == 3 && infoSetFromStr.mnemonic[0] != '+') { //format 3
+				
+				
+				}
+				else { // format 4
+				
+				
+				
+				}
+
+				// assemble the object code instruction
 				if (infoSetFromStr.operand[0] == '@') { // indirect addressing
-					registerSet.n = 1;
+					modeFlag.n = 1;
 				}
 				else if (infoSetFromStr.operand[0] == '#') { // immediate addressing
-					registerSet.i = 1;
+					modeFlag.i = 1;
 				}
 
-				if (1) {
+				opcodeOfMnemonic += (n << 1 + i);
 
+				if (infoSetFromStr.mnemonic[0] == '+') {
+					modeFlag.e = 1;
 				}
-				// pc relative
+				
+				TokenizeOperand(infoSetFromStr.operand, operand);
+				
+				
+				// there exits X! (index register)
+				if (operand[0] && !strcmp(operand[0], "X")) {
+					modeFlag.x = 1;
+				}
+				else if (operand[1] && !strcmp(operand[1], "X")) {
+					modeFlag.x = 1;
+				}
+
+							
+
+
+				sscanf(fileInputStrTemp, "%04X", &reg.PC);
 				sscanf(fileInputStr, "%04X", &cur_line_LOCCTR); // pc : cur_line_LOCCTR + 3
-				disp = operand_addr - (cur_line_LOCCTR + 3);
-				if (-2048 <= operand_addr && operand_addr <= 2047) {
-
-
+				disp = operand_addr - reg.PC;
+				if (!modeFlag.x) { 
+					if (-2048 <= operand_addr && operand_addr <= 2047) { // pc relative
+						modeFlag.p = 1;
+					}
+					else if (0 <= operand_addr && operand_addr <= 4095) { // base relative
+						modeFlag.b = 1;
+					}
+					else {
+						SEND_ERROR_MESSAGE("disp BOUDNARY ERROR. It need +(EXTENDED)");
+						SEND_ERROR_LINE(line_num);
+					}
 				}
-				else if (1) {
-
-
+				else { // extention
+				
 				}
 			}
 			// OPCODE = 'BYTE' or 'WORD'
@@ -545,25 +625,15 @@ int assemblePass2(const char * filename, int prog_len) {
 			}
 			else if (!strcmp(infoSetFromStr.mnemonic, "WORD")) {			
 				op_temp = a2dec(infoSetFromStr.operand, &error_flag);
+
 				if (error_flag) {
 					SEND_ERROR_MESSAGE("WORD OPERAND");
 					SEND_ERROR_LINE(line_num);
 					cur_line_error_flag = 1;
 				}
-				objectcode[0] = objectcode[1] = '0';
 
 				// make objectcode
-				hex = 4096;
-				for (i = 2; i < 6; i++) {
-					temp = (op_temp / (hex/16)) % hex;
-
-					if (0 <= temp && temp <= 9) {
-						objectcode[i] = temp + '0';
-					}
-					else { // 10 ~ 16 (A ~ F)
-						objectcode[i] = temp - 10 + 'A';
-					}
-				}
+				sprintf(objectcode, "%6X", op_temp);
 			}
 			// object code will not fit into current Text record 
 			if (strlen(objectcode) + strlen(textRecord) >= LEN_TEXT_RECORD) {
@@ -582,12 +652,13 @@ int assemblePass2(const char * filename, int prog_len) {
 
 		// read next input line
 		fgets(fileInputStr, 150, fpInter); // read input lines
+		fgets(fileInputStrTemp, 150, fpInterTemp);
 		fileInputStr[strlen(fileInputStr) - 1] = 0;
 		fetch_info_from_str(fileInputStr + START_RAW_STR_PASS2, &infoSetFromStr);
 		line_num += 5;
 
 		//initialization
-		initRegister(&registerSet);
+		initAddressingMode(&modeFlag);
 		initObjectCode(objectcode);
 		for (i = 0; i < LEN_OPERAND; i++) {  // initialize operands
 			operand[0][i] = operand[1][i] = 0;
@@ -606,6 +677,7 @@ int assemblePass2(const char * filename, int prog_len) {
 
 
 	// TODO : DEALLOCATE
+	fclose(fpInterTemp);
 	fclose(fpLst);
 	fclose(fpObj);
 	fclose(fpInter);
@@ -786,6 +858,19 @@ int isDirective(const char * str) {
 	return 0;
 }
 
+int initRegister (struct reg * regSet) {
+	regSet->A = 0;
+	regSet->X = 0;
+	regSet->L = 0;
+	regSet->PC = 0;
+	regSet->SW = 0;
+
+	regSet->B = 0;
+	regSet->S = 0;
+	regSet->T = 0;
+	regSet->F = 0;
+}
+
 void initFetchedInfoFromStr(symbMnemOper * infoSetFromStr) {
 	// FATAL : We cannot check whether a pointer is allocated. But I make a pointer to be not NULL when one is allocated
 	if (infoSetFromStr->symbol) {
@@ -818,13 +903,13 @@ void initTextRecord (char * textRecord) {
 	}
 }
 
-void initRegister(struct reg * registerSet) {
-	registerSet->n = 0;
-	registerSet->i = 0;
-	registerSet->b = 0;
-	registerSet->x = 0;
-	registerSet->p = 0;
-	registerSet->e = 0;
+void initAddressingMode(struct addressingMode * modeFlag) {
+	modeFlag->n = 0;
+	modeFlag->i = 0;
+	modeFlag->b = 0;
+	modeFlag->x = 0;
+	modeFlag->p = 0;
+	modeFlag->e = 0;
 }
 
 int hash_func(const char * mnemonic) {
@@ -974,9 +1059,26 @@ int strtoi(const char * str, int* error_flag, int exponential) {
 	return minus_flag * res;
 }
 
+int isRegister(const char * operand) {
+	const char *reg[9] =  { 
+		"A", "X", "L", "PC", "SW", "B", "S", "T", "F"
+	};
+	int i = 0;
+
+	for (i = 0; i < 9; i++) {
+		if (!strcmp(operand, reg[i])) {
+			return 1;
+		}
+	}
+	
+	return 0;
+}
+
 // return 0 : there is no error
 //		  0 : there are errors
 int TokenizeOperand(const char * operandStr, char ** operand) {
+	sscanf(operandStr, "%[^ ,] , %[^ ,]", operand[0], operand[1]);
+	/*
 	int i = 0, idx = 0, last_word = 0, comma_flag = 0, order = 0;
 
 	for (; operandStr[i] != 0; i++) {
@@ -1002,6 +1104,7 @@ int TokenizeOperand(const char * operandStr, char ** operand) {
 			idx = 0;
 		}
 	}
+	*/
 }
 
 // TODO : O(nlogn)인 sort로 바꿔 보자
@@ -1051,6 +1154,15 @@ void sortSYMTABandPrint() {
 	for (i = 0; i < n; i++) {
 		printf("\t%s\t%d\n", array[i].symbol, array[i].LOCCTR);
 	}
+}
+
+int isIndexMode(const char * str) {
+	int i = 0;
+	char temp[LEN_OPERAND];
+
+	sscanf(str, "%s , %s", temp);
+
+	if (temp[])
 }
 
 int a2dec (const char * str, int * error_flag) {

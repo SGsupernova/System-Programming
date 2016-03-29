@@ -54,13 +54,26 @@ typedef struct _symb {
 	char * operand;
 } symbMnemOper;
 
-struct reg {
+struct addressingMode {
 	int n; // indirect addressing
 	int i; // immediate addressing
 	int x; // index addressing
 	int b; // base relative
 	int p; // pc relative
 	int e; // extended
+};
+
+struct reg {
+	int A;
+	int X;
+	int L;
+	int PC;
+	int SW;
+
+	int B;
+	int S;
+	int T;
+	int F;
 };
 
 OPTAB opcode_table[NUM_OF_OPCODES];
@@ -91,9 +104,9 @@ int format_mnem(op_list * table, const char *mnemonic);
 
 int strtoi(const char * str, int* error_flag, int exponential);
 
-int assemblePass1(FILE * fpOrigin, int * prog_len);
+int assemblePass1(FILE * fpOrigin, int * prog_len, int * base);
 // TODO : For using same fetch function used assemblePass1, make a function that find a  location except LOCCTR
-int assemblePass2 (const char * filename, int prog_len);
+int assemblePass2 (const char * filename, int prog_len, int base);
 
 int searchSYMTAB(const char * symbol, int * LOCCTR);
 void insert2SYMTAB(char * symbol, int LOCCTR);
@@ -102,13 +115,16 @@ void fetch_info_from_str(const char * str, symbMnemOper *infoSetFromStr);
 void initFetchedInfoFromStr(symbMnemOper * infoSetFromStr);
 void initObjectCode (char * objectcode);
 void initTextRecord (char * textRecord);
-void initRegister(struct reg * registerSet);
+void initAddressingMode(struct addressingMode * modeFlag);
+void initRegiter(struct reg * regSet);
 
 int analyseBYTE(const char * strBYTE, int * byteLength);
 int isCommentLine(const char * str);
 int isDirective(const char * str);
+int isRegister(const char * operand);
 
 int TokenizeOperand(const char * operandStr, char ** operand);
+int isIndexMode(const char * str);
 
 void sortSYMTABandPrint();
 
