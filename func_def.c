@@ -328,7 +328,7 @@ int assemblePass1(FILE * fpOrigin, int * prog_len) {
 					insert2SYMTAB(infoSetFromStr.symbol, LOCCTR);
 				}
 			}
-			// TODO : 나중에 다시 sp 짤 때 operand 안들어오는 경우 제외 시키기
+			
 			// search OPTAB for OPCODE
 			format_store[0] = format_mnem(table_head[hash_func(infoSetFromStr.mnemonic)], infoSetFromStr.mnemonic);
 			if (infoSetFromStr.mnemonic[0] == '+') {
@@ -337,6 +337,7 @@ int assemblePass1(FILE * fpOrigin, int * prog_len) {
 			else {
 				format_store[1] = -1;
 			}
+
 			if (format_store[0] != -1 || format_store[1] != -1) { // OPCODE FOUND
 				if (format_store[0] != -1) {
 					LOCCTR += format_store[0]; // add {instruction length} to LOCCTR
@@ -423,7 +424,7 @@ int assemblePass2(const char * filename, int prog_len) {
 	int operand_addr = 0, LOCCTR = 0, disp = 0, addressModeField = 0, base = 0,
 		line_num = 5, opcodeOfMnemonic = 0, len_mnem = 0, i = 0, j = 0, format2r[2] = {0,}, infoInReg = 0,
 		format = 0, error_flag = 0, cur_line_error_flag = 0, start_LOCCTR = 0, first_LOCCTR = 0, objectcode_num = 0,
-		bogus = 0, conti = 0, num_flag = 0;
+		bogus = 0, conti = 0, num_flag = 0, filename_len, numOfHalfByte = 0;
 	int op_temp, temp,hex, temp_store[2];
 	char fileInputStr[150] = {0,}, fileInputStrTemp[150] = {0},
 		 exceptCommentStr[150] = {0,}; // TODO : mnemonic , symbol 등이 필요 없을 가능성이 높음, 추후에 보고 고칠 것.
@@ -435,6 +436,7 @@ int assemblePass2(const char * filename, int prog_len) {
 	symbMnemOper infoSetFromStr;
 	struct addressingMode modeFlag;
 	struct reg regSet;
+	struct modificationRecord *mRecord = NULL;
 
 	// initialization
 	initAddressingMode(&modeFlag);
@@ -444,6 +446,13 @@ int assemblePass2(const char * filename, int prog_len) {
 
 	filenameLst = strdup(filename);
 	filenameObj = strdup(filename);
+
+	filename_len = strlen(filename);
+	for (i = filename_len - 4; i < filename_len; i++) {
+		filenameLst[i] = 0;
+		filenameObj[i] = 0;
+	}
+
 	strcat(filenameLst, ".lst");
 	strcat(filenameObj, ".obj");
 
@@ -690,7 +699,7 @@ int assemblePass2(const char * filename, int prog_len) {
 			}
 
 			
-
+			// additional handling
 			if (infoSetFromStr.mnemonic && !strcmp(infoSetFromStr.mnemonic, "LDB")) {
 				if (infoSetFromStr.operand[0] == '#') { // immediate addressing
 					if (searchSYMTAB(infoSetFromStr.operand + 1, &LOCCTR)) {
@@ -713,6 +722,27 @@ int assemblePass2(const char * filename, int prog_len) {
 				}
 			}
 
+			if (infoSetFromStr.mnemonic 
+					&& 
+					(!strcmp(infoSetFromStr.mnemonic, "JSUB") 
+					 || (infoSetFromStr.mnemonic[0] == '+' && !strcmp(infoSetFromStr.mnemonic + 1, "JSUB")))
+				) 
+			{
+				numOfHalfByte = 0;
+				if (infoSetFromStr.mnemonic[0] == '+') {
+					numOfHalfByte = 5;
+				}
+				else {
+					numOfHalfByte = 3;
+				}
+				sscanf(fileInputStr, "%04X", &LOCCTR);
+
+				// location of the byte = LOCCTR of mnemonic + 1
+				insert2modificationRecord(&mRecord, LOCCTR, numOfHalfByte);
+			}
+
+
+
 
 			// object code will not fit into current Text record 
 			if (strlen(objectcode) + strlen(textRecord) >= LEN_TEXT_RECORD || 
@@ -729,6 +759,7 @@ int assemblePass2(const char * filename, int prog_len) {
 			// add object code to Text record
 			strcat(textRecord, objectcode);
 		}
+
 		if (cur_line_error_flag) {
 			SEND_ERROR_LINE(line_num);
 			error_flag = cur_line_error_flag;
@@ -765,6 +796,16 @@ int assemblePass2(const char * filename, int prog_len) {
 
 	// write last Text record to object program
 	fprintf(fpObj, "T%06X%02X%s\n", start_LOCCTR, (unsigned int)strlen(textRecord), textRecord);
+
+	// Modification Record handling
+	{
+		struct modificationRecord * link = mRecord;
+
+		while (link) {
+			fprintf(fpObj, "M%06X%02X\n", link->LOCCTR, link->numOfHalfByte);
+			link = link->next;
+		}
+	}
 
 	// write End record to object program
 	fprintf(fpObj, "E%06X\n", first_LOCCTR);
@@ -966,6 +1007,24 @@ void initRegister (struct reg * regSet) {
 	regSet->S = 0;
 	regSet->T = 0;
 	regSet->F = 0;
+}
+
+void insert2modificationRecord(struct modificationRecord **mRecord, int LOCCTR, int numOfHalfByte) {
+	struct modificationRecord * link = *mRecord;
+
+	if (link) {
+		while (link->next) {
+			link = link->next;
+		}
+		link->next = (struct modificationRecord *) calloc(1, sizeof(struct modificationRecord));
+		link->next->LOCCTR = LOCCTR;
+		link->next->numOfHalfByte = numOfHalfByte;
+	}
+	else {
+		(*mRecord) = (struct modificationRecord *) calloc(1, sizeof(struct modificationRecord));
+		(*mRecord)->LOCCTR = LOCCTR;
+		(*mRecord)->numOfHalfByte = numOfHalfByte;
+	}
 }
 
 void initFetchedInfoFromStr(symbMnemOper * infoSetFromStr) {

@@ -251,6 +251,11 @@ int main () {
 				// FATAL it needs to be fixed.
 				symbol_table = NULL;
 			}
+
+			if (strcmp(argv[0] + strlen(argv[0]) - 4, ".asm")) {
+				SEND_ERROR_MESSAGE("THIS IS NOT .asm file");
+			}
+
 			command_assemble(argv[0], &error_flag);
 
 			if (error_flag) {
@@ -262,9 +267,7 @@ int main () {
 				SEND_ERROR_MESSAGE("FORMAT DOES NOT MATCH THIS COMMAND");
 				continue;
 			}
-			if (strcmp(argv[0] + strlen(argv[0]) - 4, ".asm")) {
-				SEND_ERROR_MESSAGE("THIS IS NOT .asm file");
-			}
+
 			command_type(argv[0], &error_flag);
 
 			if (error_flag) {

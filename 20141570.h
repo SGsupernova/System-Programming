@@ -64,6 +64,12 @@ struct addressingMode {
 	int e; // extended
 };
 
+struct modificationRecord {
+	struct modificationRecord * next;
+	int numOfHalfByte;
+	int LOCCTR;
+};
+
 struct reg {
 	int A;
 	int X;
@@ -114,11 +120,14 @@ int searchSYMTAB(const char * symbol, int * LOCCTR);
 void insert2SYMTAB(char * symbol, int LOCCTR);
 
 void fetch_info_from_str(const char * str, symbMnemOper *infoSetFromStr);
+
 void initFetchedInfoFromStr(symbMnemOper * infoSetFromStr);
 void initObjectCode (char * objectcode);
 void initTextRecord (char * textRecord);
 void initAddressingMode(struct addressingMode * modeFlag);
 void initRegister(struct reg * regSet);
+
+void insert2modificationRecord(struct modificationRecord **mRecord, int LOCCTR, int numOfHalfByte);
 
 int analyseBYTE(const char * strBYTE, int * byteLength);
 int isCommentLine(const char * str);
