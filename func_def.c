@@ -928,9 +928,6 @@ void fetch_info_from_str(const char * str, symbMnemOper *infoSetFromStr) {
 	// XXX : 정규표현식으로 param2는 ., \n나오기 바로 전까지 받기
 	sscanf(str, "%s %s %[^.\n]", symbol, mnemonic, operand);
 
-	// TEST
-	//	printf("fetch_info_from_str!!\n");
-	//	printf("symbol : *%s* & mnemonic : *%s* & operand : *%s*\n", symbol, mnemonic, operand);
 
 	if (isDirective(mnemonic) || !strcmp(mnemonic, "BASE")
 			|| (opcode_mnem(table_head[hash_func(mnemonic)], mnemonic) != -1) 
@@ -1246,33 +1243,6 @@ int isRegisterContainWhat(const char * operand, struct reg regSet, int * infoInR
 //		  0 : there are errors
 int TokenizeOperand(const char * operandStr, char ** operand) {
 	sscanf(operandStr, "%[^ ,] , %[^ ,]", operand[0], operand[1]);
-	/*
-	   int i = 0, idx = 0, last_word = 0, comma_flag = 0, order = 0;
-
-	   for (; operandStr[i] != 0; i++) {
-	   if (operandStr[i] != ' ' 
-	   && operandStr[i] != ',' 
-	   && operandStr[i] != '\t' 
-	   && operandStr[i] != '\n'
-	   ) 
-	   {
-	   last_word = i;
-	   }
-	   if (operandStr[i] == ',') {
-	   comma_flag = 1;
-	   }
-	   }
-
-	   for (i = 0; operandStr[i] != 0; i++) {
-	   if (operandStr[i] != ',' && operandStr[i] != ' ') {
-	   operand[order][idx++] = operandStr[i];
-	   }
-	   else if (operandStr[i] == ',') {
-	   order ++;
-	   idx = 0;
-	   }
-	   }
-	   */
 }
 
 // TODO : O(nlogn)인 sort로 바꿔 보자
