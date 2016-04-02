@@ -1,5 +1,9 @@
 // TODO : order functions
 // TODO : string handling function 중에서 입력이 NULL인 경우 처리 할 것
+
+#ifndef __20141570__
+
+#define __20141570__
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -149,3 +153,4 @@ int error_check_moreargv (const char * input_str, int idx_input_str);
 void deallocate_history(void);
 void deallocate_opcode(void);
 
+#endif

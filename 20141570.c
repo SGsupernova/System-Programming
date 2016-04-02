@@ -67,6 +67,27 @@ int main () {
 		command[idx_argv] = 0;
 
 
+		while (input_str[idx_input_str] == ' ' || 
+				input_str[idx_input_str] == '\t' ||
+				input_str[idx_input_str] == '\n') {
+			idx_input_str++;
+		}
+
+		/* ---------- linking loader check and execute command ---------- */
+		if (!strcmp(command, "progaddr")) {
+			linking_loader_main(1 input_str + idx_input_str);
+		}
+		else if (!strcmp(command, "loader")) {
+			linking_loader_main(2 input_str + idx_input_str);
+		}
+		else if (!strcmp(command, "run")) {
+			linking_loader_main(3, input_str + idx_input_str);
+		}
+		else if (!strcmp(command, "bp")) {
+			linking_loader_main(4, input_str + idx_input_str);
+		}
+		/* ---------- linking loader check end --------- */
+
 		/* get parameter name */
 		for (i = 0; i < 3 ;i++) {
 			comma_flag = 0;
