@@ -1,6 +1,6 @@
 #---------------------------------------------------------------
 
-SOURCES = func_def.c 20141570.c linking_loader.c
+SOURCES = func_def.c 20141570.c linking_loader.c tokenizer.c
 OBJECTS = $(SOURCES:.c=.o)
 MYPROGRAM = 20141570.out
 
@@ -14,4 +14,4 @@ $(MYPROGRAM) : $(OBJECTS)
 		$(CC) $(CFLAG) -o $@ $(OBJECTS)
 
 clean :
-		rm -f *.o $(MYPROGRAM)
+		rm -f *.o $(MYPROGRAM) *.lst *.obj *.out 

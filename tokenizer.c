@@ -36,7 +36,7 @@ int tokenizer_delimiter_space (char *str, char *** res_argv) {
 	int num_del = 3;
 	char * temp_token = (char *) calloc (MAX_LEN_TOKEN, sizeof(char));
 	struct token_link * token_head = NULL,
-					  * link = token_head;
+					  * link = NULL;
 	int i = 0, argc = 0, token_process_flag = 0, new_flag = 0, find_delimeter_flag = 0;
 	int idx_del = 0, idx_temp = 0;
 
@@ -51,12 +51,11 @@ int tokenizer_delimiter_space (char *str, char *** res_argv) {
 				tokenizer_token_insert (&token_head, temp_token);
 
 				/* initialize temp_token */
-				for (idx_temp = 0; temp_token[i] != 0; idx_temp++) {
+				for (idx_temp = 0; temp_token[idx_temp] != 0; idx_temp++) {
 					temp_token[idx_temp] = 0;
 				}
 				idx_temp = 0;
 
-				//				printf("HELLO!~!!\n");
 				new_flag = 1;
 				token_process_flag = 0;
 			}
@@ -74,14 +73,16 @@ int tokenizer_delimiter_space (char *str, char *** res_argv) {
 		}
 	}
 
+	// last token
 	if (token_process_flag) {
 		tokenizer_token_insert (&token_head, temp_token);
 		argc ++;
 	}
 
 
-	/*  */
+	/* store all argvs */
 	i = 0;
+	link = token_head;
 	*res_argv = (char **) calloc (argc, sizeof(char *));
 
 	while (link) {
@@ -89,6 +90,7 @@ int tokenizer_delimiter_space (char *str, char *** res_argv) {
 		link = link->next;
 	}
 
+	/* deallocation */
 	tokenizer_deallocate_token_link(&token_head);
 
 	return argc;

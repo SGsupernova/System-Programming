@@ -1163,6 +1163,7 @@ int strtoi(const char * str, int* error_flag, int exponential) {
 		minus_flag = 1, x_flag = 0;
 
 	if (str == NULL) {
+		*error_flag = 1;
 		return -1;
 	}
 

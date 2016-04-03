@@ -2,8 +2,8 @@
 // TODO : string handling function 중에서 입력이 NULL인 경우 처리 할 것
 
 #ifndef __20141570__
-
 #define __20141570__
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
