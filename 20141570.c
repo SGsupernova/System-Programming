@@ -75,10 +75,10 @@ int main () {
 
 		/* ---------- linking loader check and execute command ---------- */
 		if (!strcmp(command, "progaddr")) {
-			linking_loader_main(1 input_str + idx_input_str);
+			linking_loader_main(1, input_str + idx_input_str);
 		}
 		else if (!strcmp(command, "loader")) {
-			linking_loader_main(2 input_str + idx_input_str);
+			linking_loader_main(2, input_str + idx_input_str);
 		}
 		else if (!strcmp(command, "run")) {
 			linking_loader_main(3, input_str + idx_input_str);

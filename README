@@ -6,6 +6,10 @@ $ make
 After compilation, type './20141570.out'
 $ ./20141570.out
 
+3. How to test filename(tokenizer)
+	gcc -D DEBUG filename.c -o filename.out
+
+
 In shell,
    you can type these command
 	- h[elp]
@@ -18,5 +22,9 @@ In shell,
 	- reset
 	- opcode mnemonic
 	- opcodelist
+	- assemble filename
+	- type filename
+	- symbol
+
 
 	If you do not type as the form suggested, this shell does not execute the command you want and prints the error message.

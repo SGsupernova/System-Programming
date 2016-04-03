@@ -1,6 +1,6 @@
 #---------------------------------------------------------------
 
-SOURCES = func_def.c 20141570.c
+SOURCES = func_def.c 20141570.c linking_loader.c
 OBJECTS = $(SOURCES:.c=.o)
 MYPROGRAM = 20141570.out
 
