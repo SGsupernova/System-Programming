@@ -1,9 +1,9 @@
 #include <string.h>
 #include <stdlib.h>
 #include "tokenizer.h"
+#include <stdio.h>
 
 #ifdef TEST
-#include <stdio.h>
 int main () {
 	char str[50] = "hello man I'm Taeseung";
 	char ** argv = NULL;
@@ -129,3 +129,10 @@ void tokenizer_deallocate_token_link(struct token_link ** token_head) {
 
 	*token_head = NULL;
 }
+
+// return 0 : there is no error
+//		  0 : there are errors
+int TokenizeOperand(const char * operandStr, char ** operand) {
+	sscanf(operandStr, "%[^ ,] , %[^ ,]", operand[0], operand[1]);
+}
+

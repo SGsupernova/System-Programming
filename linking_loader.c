@@ -7,9 +7,10 @@ int linking_loader_main (int num_command, const char * inputStr) {
 	static struct bpLink * bpLinkHead = NULL;
 	static int progaddr = 0;
 
+	struct reg regSet;
+
 	int temp_int = 0;
 	int error_flag = 0;
-
 
 	switch (num_command) {
 		case 1 : // progaddr command
@@ -19,15 +20,16 @@ int linking_loader_main (int num_command, const char * inputStr) {
 			break;
 
 		case 2: // loader command
-
+			error_flag = command_loader(inputStr);
 			break;
 
 		case 3 : // run command
-
+			initRegister(&regSet);
+			command_run(regSet);
 			break;
 
 		case 4 : // break point command
-			command_bp(&bpLinkHead, inputStr);
+			error_flag = command_bp(&bpLinkHead, inputStr);
 			break;
 	}
 }
@@ -46,17 +48,42 @@ int command_progaddr (const char * inputStr, int * error_flag) {
 	return progaddr;
 }
 
-int command_loader () {
+int command_loader (const char * inputStr) {
+	char ** object_filename = NULL,
+		 * extension = NULL;
+	int argc = 0, i = 0;
+	int prog_len = 0;
 
+	tokenizer(inputStr, &argc, &object_filename);
 
+	if (!argc) { // there is no argument
+		SEND_ERROR_MESSAGE("THERE IS NO ARGUMENT");
+		return 1;
+	}
 
+	for (i = 0; i < argc; i++) {
+		extension = fetch_filename_extension(object_filename[i]);
+		
+		if (!extension || strcmp(extension, "obj")) { // there is no extension \ error
+			SEND_ERROR_MESSAGE("(A extension must be .obj) EXTENSION");
+			return 1;
+		}
+	}
+
+	// all extensions of filenames are .obj
+
+	linking_loader_print_load_map(prog_len);
+
+	return 0;
 }
 
-int command_run () {
+int command_run (struct reg regSet) {
+	
 
-
+	print_register_set(regSet);
 }
 
+// return is_error
 int command_bp (struct bpLink ** bpLinkHead_ptr, const char * inputStr) {
 	int argc = 0, addr = 0, error_flag = 0;
 	char ** argv = NULL;
@@ -91,10 +118,16 @@ int command_bp (struct bpLink ** bpLinkHead_ptr, const char * inputStr) {
 	return 0;
 }
 
-// TODO : make a fileopener
-void linkingFetchObjFilename () {
+void linking_loader_print_load_map(int prog_len) {
+	printf("control\t\tsymbol\t\taddress\t\tlength\n");
+	printf("section\t\tname\n");
+	printf("----------------------------------------------------------\n");
 
 
+
+
+	printf("----------------------------------------------------------\n");
+	printf("\t\t\t\ttotal length\t%04X\n", prog_len);
 }
 
 void bp_clear(struct bpLink ** bpLinkHead_ptr) {
@@ -143,3 +176,6 @@ void bp_address(struct bpLink ** bpLinkHead_ptr, int addr) {
 
 	printf("[ok] create breakpoint %04X\n", addr);
 }
+
+
+

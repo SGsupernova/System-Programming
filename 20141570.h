@@ -20,7 +20,7 @@
 #define LEN_SYMBOL 10
 #define LEN_OPERAND 64
 #define MEMORY_SIZE 0x100000
-#define SEND_ERROR_MESSAGE(str) printf("\"%s\" ERROR OCCUR!!\n", str)
+#define SEND_ERROR_MESSAGE(str) printf("<%s> ERROR OCCUR!!\n", str)
 #define SEND_ERROR_LINE(number) printf("%d LINE IS ERROR OCCUR\n", number)
 #define ADDR_BOUNDARY(addr) ((addr) < 0x100000 ? (addr) : 0xFFFFF)
 #define INTERMEDIATE_FILENAME "inter.asm"
@@ -115,6 +115,7 @@ int opcode_mnem(op_list * table, const char *mnemonic);
 int format_mnem(op_list * table, const char *mnemonic);
 
 int strtoi(const char * str, int* error_flag, int exponential);
+int a2dec (const char * str, int * error_flag);
 
 int assemblePass1(FILE * fpOrigin, int * prog_len);
 // TODO : For using same fetch function used assemblePass1, make a function that find a  location except LOCCTR
@@ -134,13 +135,18 @@ void initRegister(struct reg * regSet);
 void insert2modificationRecord(struct modificationRecord **mRecord, int LOCCTR, int numOfHalfByte);
 
 int analyseBYTE(const char * strBYTE, int * byteLength);
+
+
 int isCommentLine(const char * str);
 int isDirective(const char * str);
 int isRegisterContainWhat(const char * operand, struct reg regSet, int * infoInReg);
 
-int TokenizeOperand(const char * operandStr, char ** operand);
+
+char * fetch_filename_extension (const char * filename);
 
 void sortSYMTABandPrint();
+
+void print_register_set(struct reg regSet);
 
 // TODO : DELETE SYMBOL TABLE FUNCTION
 // TODO : DEALLOCATING sth FUNCTIONS 필요함!!

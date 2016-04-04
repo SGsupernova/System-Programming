@@ -968,6 +968,29 @@ void fetch_info_from_str(const char * str, symbMnemOper *infoSetFromStr) {
 	free(operand);
 }
 
+char * fetch_filename_extension (const char * filename) {
+	int i, period_loc = 0; // location of .
+
+	if (!filename) { // the string is NULL
+		return NULL;
+	}
+
+	// find the last period_loc
+	for (i = 0; filename[i] != 0; i++) {
+		if (filename[i] == '.') {
+			period_loc = i;
+		}
+	}
+
+	if (!filename[0] || !filename[period_loc + 1]) {
+		return NULL;
+	}
+
+	char * extension = strdup (filename + period_loc + 1);
+
+	return extension;
+}
+
 int getLOCCTR(const char * str) {
 	int num = 1;
 	sscanf(str, "%d", &num);
@@ -1212,6 +1235,22 @@ int strtoi(const char * str, int* error_flag, int exponential) {
 	return minus_flag * res;
 }
 
+int a2dec (const char * str, int * error_flag) {
+	int i = 0, res = 0;
+
+	for (; str[i] != 0; i++) {
+		if (('0' <= str[i] && str[i] <= '9')) {
+			*error_flag = 1; // error
+			return 0;
+		}
+		res *= 10;
+		res += str[i] - '0';
+	}
+
+	return res;
+}
+
+
 int isRegisterContainWhat(const char * operand, struct reg regSet, int * infoInReg) {
 	const char *regStr[9] =  { 
 		"A", "X", "L", "PC", "SW", "B", "S", "T", "F"
@@ -1240,11 +1279,6 @@ int isRegisterContainWhat(const char * operand, struct reg regSet, int * infoInR
 	return 0;
 }
 
-// return 0 : there is no error
-//		  0 : there are errors
-int TokenizeOperand(const char * operandStr, char ** operand) {
-	sscanf(operandStr, "%[^ ,] , %[^ ,]", operand[0], operand[1]);
-}
 
 // TODO : O(nlogn)인 sort로 바꿔 보자
 void sortSYMTABandPrint() {
@@ -1295,19 +1329,12 @@ void sortSYMTABandPrint() {
 	}
 }
 
-int a2dec (const char * str, int * error_flag) {
-	int i = 0, res = 0;
-
-	for (; str[i] != 0; i++) {
-		if (('0' <= str[i] && str[i] <= '9')) {
-			*error_flag = 1; // error
-			return 0;
-		}
-		res *= 10;
-		res += str[i] - '0';
-	}
-
-	return res;
+void print_register_set(struct reg regSet) {
+	printf("\tA : %06X X : %06X\n", regSet.A, regSet.X);
+	printf("\tL : %06X PC : %06X\n", regSet.L, regSet.PC);
+	printf("\tB : %06X S : %06X\n", regSet.B, regSet.S);
+	printf("\tT : %06X\n", regSet.T);
+	printf("End program.\n");
 }
 
 

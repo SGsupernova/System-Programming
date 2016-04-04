@@ -13,4 +13,6 @@ int tokenizer_delimiter_space (char * str, char *** res_argv);
 void tokenizer_token_insert (struct token_link ** token_head, char * token);
 void tokenizer_deallocate_token_link(struct token_link ** token_head);
 
+int TokenizeOperand(const char * operandStr, char ** operand);
+
 #endif
