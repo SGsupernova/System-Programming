@@ -1,6 +1,7 @@
 #include "20141570.h"
 #include "tokenizer.h"
 #include "linking_loader.h"
+#include <string.h>
 #include <stdlib.h>
 
 int linking_loader_main (int num_command, const char * inputStr) {
@@ -48,11 +49,12 @@ int command_progaddr (const char * inputStr, int * error_flag) {
 	return progaddr;
 }
 
-int command_loader (const char * inputStr) {
+int command_loader (const char * inputStr, int progaddr) {
 	char ** object_filename = NULL,
 		 * extension = NULL;
 	int argc = 0, i = 0;
 	int prog_len = 0;
+	int error_flag = 0;
 
 	tokenizer(inputStr, &argc, &object_filename);
 
@@ -69,6 +71,10 @@ int command_loader (const char * inputStr) {
 			return 1;
 		}
 	}
+
+	linking_loader_pass1 (progaddr, object_filename);
+
+	linking_loader_pass2 (progaddr, object_filename);
 
 	// all extensions of filenames are .obj
 
@@ -115,6 +121,89 @@ int command_bp (struct bpLink ** bpLinkHead_ptr, const char * inputStr) {
 		bp_address(bpLinkHead_ptr, addr);
 	}
 
+	return 0;
+}
+
+int linking_loader_pass1 (int progaddr, int argc, char *object_filename[], ESTAB extern_symbol_table[]) {
+	FILE * object_fp = NULL;
+	char fileInputStr[150] = {0,}, 
+		 record_type = 0, program_name[7] = {0,};
+	int CSADDR = progaddr, CSLTH = 0,
+		starting_addr = 0;
+	int i = 0;
+	int is_found = 0;
+
+	while (i < argc) {
+		object_fp = fopen(object_filename[i], "r");
+		
+		// read next input record
+		fgets(fileInputStr, 150, object_fp);
+		sscanf(fileInputStr, "%c", &record_type); // TODO : Record가 H가 아닌 경우에 대해서 Error handling을 해야한다.
+
+		// set CSLTH to control section length
+		sscanf(fileInputStr, "%c%s%06X%06X", &record_type, program_name, &starting_addr, &CSLTH);
+
+		is_found = linking_loader_search_control_section_name(program_name, argc, extern_symbol_table)	// search ESTAB for control section name
+		if (is_found == 1) {
+			SEND_ERROR_MESSAGE("DUPLICATE EXTERNAL SYMBOL");
+			return 1; // error
+		}
+		else {
+			extern_symbol_table[i].control_section_name = strdup(program_name);
+			extern_symbol_table[i].length				= CSLTH;
+			extern_symbol_table[i].address				= CSADDR;
+		}
+	
+
+		record_type = 0;
+		while (record_type != 'E') {
+			// read next input record
+			// TODO 
+
+			if (record_type == 'D') {
+				for (/* TODO */) { // for each symbol in the record
+					//search ESTAB for symbol name
+					is_found = /* TODO : make a function that searchs symbol name in ESTAB */;
+					if (is_found) {
+						SEND_ERROR_MESSAGE("DUPLICATE EXTERNAL SYMBOL");
+						return 1; // error
+					}
+					else {
+						// TODO : make a function that enters symbol into ESTAB with value (CSADDR + indicated address)
+					}
+				}
+			}
+		}
+
+
+		// add CSLTH to CSADDR
+		CSADDR += CSLTH;
+
+		i ++;
+	}
+
+}
+
+int linking_loader_pass2 () {
+
+
+
+}
+
+int linking_loader_search_estab_control_section_name(const char * str, int argc, ESTAB extern_symbol_table[]) {
+	int i = 0;
+
+	if (!str) {
+		return -1;
+	}
+
+	for (i = 0; i < argc; i++) {
+		if (extern_symbol_table[i].control_section_name && 
+				!strcmp(str, extern_symbol_table[i].control_section_name)) {
+			return 1;
+		}
+	}
+	
 	return 0;
 }
 
