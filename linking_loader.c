@@ -127,10 +127,11 @@ int command_bp (struct bpLink ** bpLinkHead_ptr, const char * inputStr) {
 int linking_loader_pass1 (int progaddr, int argc, char *object_filename[], ESTAB extern_symbol_table[]) {
 	FILE * object_fp = NULL;
 	char fileInputStr[150] = {0,}, 
-		 record_type = 0, program_name[7] = {0,};
+		 record_type = 0, program_name[7] = {0,}, *extern_symbol = (char *) calloc (7, sizeof(char));
 	int CSADDR = progaddr, CSLTH = 0,
-		starting_addr = 0;
-	int i = 0;
+		starting_addr = 0, relative_addr = 0,
+		**bogus_double_pointer = NULL;
+	int i = 0, argc = 0, define_record_loc = 0;
 	int is_found = 0;
 
 	while (i < argc) {
@@ -138,7 +139,8 @@ int linking_loader_pass1 (int progaddr, int argc, char *object_filename[], ESTAB
 		
 		// read next input record
 		fgets(fileInputStr, 150, object_fp);
-		sscanf(fileInputStr, "%c", &record_type); // TODO : Record가 H가 아닌 경우에 대해서 Error handling을 해야한다.
+		getRecoredType(fileInputStr, record_type);
+		// sscanf(fileInputStr, "%c", &record_type); // TODO : Record가 H가 아닌 경우에 대해서 Error handling을 해야한다.
 
 		// set CSLTH to control section length
 		sscanf(fileInputStr, "%c%s%06X%06X", &record_type, program_name, &starting_addr, &CSLTH);
@@ -158,26 +160,37 @@ int linking_loader_pass1 (int progaddr, int argc, char *object_filename[], ESTAB
 		record_type = 0;
 		while (record_type != 'E') {
 			// read next input record
-			// TODO 
+			fgets(fileInputStr, 150, object_fp);
+			getRecoredType(fileInputStr, record_type);
 
 			if (record_type == 'D') {
-				for (/* TODO */) { // for each symbol in the record
+				define_record_loc = 1;
+				while (fileInputStr[define_record_loc]) { // for each symbol in the record_type
+					relative_addr = 0x1000000;
+					sscanf(fileInputStr + define_record_loc, "%6s%06X", extern_symbol, &relative_addr);
+
+					if (relative_addr == 0x1000000) {
+						SEND_ERROR_MESSAGE("(linking_loader_pass1)In obj file/, define record");
+					}
+
 					//search ESTAB for symbol name
-					is_found = /* TODO : make a function that searchs symbol name in ESTAB */;
+					is_found = linking_loader_search_estab_symbol(extern_symbol_table[i].extern_symbol, extern_symbol);/* XXX : make a function that searchs symbol name in ESTAB */;
 					if (is_found) {
 						SEND_ERROR_MESSAGE("DUPLICATE EXTERNAL SYMBOL");
 						return 1; // error
 					}
 					else {
-						// TODO : make a function that enters symbol into ESTAB with value (CSADDR + indicated address)
+						linking_loader_enter_symbol (&extern_symbol_table[i].extern_symbol, extern_symbol, relative_addr +CSADDR); // XXX : make a function that enters symbol into ESTAB with value (CSADDR + indicated address)
 					}
+
+					define_record_loc += 12;
 				}
 			}
 		}
 
-
 		// add CSLTH to CSADDR
 		CSADDR += CSLTH;
+
 
 		i ++;
 	}
@@ -205,6 +218,38 @@ int linking_loader_search_estab_control_section_name(const char * str, int argc,
 	}
 	
 	return 0;
+}
+
+int linking_loader_search_estab_symbol (struct __extern_symbol *extern_symbol, char * str) {
+	struct __extern_symbol * link = extern_symbol;
+
+	while (link) {
+		if (link->symbol && !strcmp(link->symbol, str)) {
+			return 1; // found
+		}
+		link = link->next;
+	}
+	
+	return 0; // not found
+}
+
+void linking_loader_enter_symbol (struct __extern_symbol **extern_symbol_ptr, char * str, int address) {
+	struct __extern_symbol * new = NULL,
+						   * link = *extern_symbol_ptr;
+
+	new = (struct __extern_symbol*) calloc (1, sizeof(struct __extern_symbol));
+	new->symbol = strdup(str);
+	new->address = address;
+
+	if (link) {
+		while (link->next) {
+			link = link->next;
+		}
+		link->next = new;
+	}
+	else {
+		*extern_symbol_ptr = new;
+	}
 }
 
 void linking_loader_print_load_map(int prog_len) {

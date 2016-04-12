@@ -1,8 +1,10 @@
 #ifndef __linking_loader__
 #define __linking_loader__
 
-#define isOverMemoryBoundary(addr) (addr < 0 || addr > 0xFFFFF)
 
+// define function 
+#define isOverMemoryBoundary(addr) (addr < 0 || addr > 0xFFFFF)
+#define getRecoredType(str, record_type) sscanf(str, "%c", &record_type)
 
 #include "20141570.h"
 #include "linking_loader.h"
@@ -39,6 +41,9 @@ int command_bp (struct bpLink ** bpLinkHead_ptr, const char * inputStr);
 int linking_loader_pass1();
 int linking_loader_pass2();
 
+int linking_loader_search_estab_control_section_name(const char * str, int argc, ESTAB extern_symbol_table[]);
+int linking_loader_search_estab_symbol (struct __extern_symbol *extern_symbol, char * str);
+void linking_loader_enter_symbol (struct __extern_symbol **extern_symbol, char * str, int address);
 void linking_loader_print_load_map(int prog_len);
 
 int linking_loader_search_control_section_name(const char * str, int argc, ESTAB extern_symbol_table[]);

@@ -136,3 +136,16 @@ int TokenizeOperand(const char * operandStr, char ** operand) {
 	sscanf(operandStr, "%[^ ,] , %[^ ,]", operand[0], operand[1]);
 }
 
+void tokenize_deallocate_argvs (char *** argv_ptr, int argc) {
+	if (*argv_ptr && argc) {
+		int i = 0;
+
+		for (i = 0; i < argc; i++) {
+			if (!(*argc)[i]) { printf("tokenizing error!!\n"); }
+			free((*argc)[i]);
+		}
+		
+	}
+
+	(*argv_ptr) = NULL;
+}
