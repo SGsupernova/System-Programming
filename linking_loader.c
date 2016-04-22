@@ -151,7 +151,7 @@ int linking_loader_pass1 (int progaddr, int argc, char *object_filename[], ESTAB
 		**bogus_double_pointer = NULL;
 	int iter = 0, is_found = 0;
 	int define_record_loc = 0, define_record_length = 0;
-	
+	int bogus_int;
 
 
 	while (iter < argc) {
@@ -201,7 +201,7 @@ int linking_loader_pass1 (int progaddr, int argc, char *object_filename[], ESTAB
 					}
 
 					//search ESTAB for symbol name
-					is_found = linking_loader_search_estab_symbol(extern_symbol_table[iter].extern_symbol, extern_symbol);/* XXX : make a function that searchs symbol name in ESTAB */;
+					is_found = linking_loader_search_estab_symbol(extern_symbol_table, argc, extern_symbol, &bogus_int);/* XXX : make a function that searchs symbol name in ESTAB */;
 					if (is_found) {
 						SEND_ERROR_MESSAGE("(linking_loader_pass1 / define record)DUPLICATE EXTERNAL SYMBOL");
 						return 1; // error
@@ -227,20 +227,29 @@ int linking_loader_pass1 (int progaddr, int argc, char *object_filename[], ESTAB
 
 // need
 // progaddr / the number of object_file(argc)
-int linking_loader_pass2 (int progaddr, int argc) {
+int linking_loader_pass2 (int progaddr, int argc, ESTAB extern_symbol_table[]) {
 	FILE * object_fp = NULL;
 
 	char fileInputStr[150] = {0,};
-	char record_type = 0;
+	char record_type = 0, reference_name[7] = {0,};
+	char temp_char, operator = 0;
 
 	int CSADDR = progaddr,
 		EXECADDR = progaddr,
-		CSLTH = 0;
-	int iter = 0, is_found = 0;
-	
+		CSLTH = 0,
+		iter_addr = 0;
+	int iter = 0, idx = 0, refer_idx = 0, is_found = 0,
+		temp_hex = 0, temp_address;
+	int length_objcode = 0;
+	int starting_addr = 0, num_half_byte = 0;
 
 	while (iter < argc) { // not end of input
 		object_fp = fopen(object_filename[iter], "r");
+
+		int reference_table[257] = {0,}; // 16*16 + 1
+		refer_idx = 2;
+		reference_table[1] = extern_symbol_table[iter].addr;
+
 
 		//read next input record
 		fgets(fileInputStr, 150, object_fp);
@@ -250,33 +259,69 @@ int linking_loader_pass2 (int progaddr, int argc) {
 		// set CSLTH to control section length
 		sscanf(fileInputStr, "%c%s%06X%06X", &record_type, program_name, &starting_addr, &CSLTH);
 
+
 		record_type = 0;
 		while (record_type != 'E') {
 			// read next input record
 			fgets(fileInputStr, 150, object_fp);
 			getRecoredType(fileInputStr, record_type);
 		
-			if (record_type == 'T') {
-				// if object code is in character form,
-				// convert into internal representation
+			if (record_type == 'R') {
+				idx = 1;
+				
+				for (; fileInputStr[idx] != '\0'; idx += 8) {
+					sscanf(fileInputStr + idx, "%02X%6s", &refer_idx, reference_name);
+					is_found = linking_loader_search_estab_symbol(extern_symbol_table, argc, reference_name, &temp_address);
 
-
+					if (is_found) {
+						reference_table[refer_idx] = temp_address;
+					}
+					else {
+						SEND_ERROR_MESSAGE("(linking_loader pass2) Reference record");
+						return 1;
+					}
+				}
+			}
+			else if (record_type == 'T') {
+				// CSADDR + specified address
+				sscanf(fileInputStr, "T%06X%02X", &iter_addr, &length_objcode);
+				iter_addr += CSADDR;
+				length_objcode *= 2;
+				
 
 				// move object code from record to location
-				// CSADDR + specified address
-
+				idx = 9;
+				for (; iter_addr < length_objcode; iter_addr ++, idx += 2) {
+					if (idx > 150) {
+						SEND_ERROR_MESSAGE("(linking_loader pass2) length_objcode");
+						return 1;
+					}
+					if (iter_addr > MEMORY_SIZE || iter_addr < 0) {
+						SEND_ERROR_MESSAGE("(linking_loader pass2) Memory overflow");
+						return 1;
+					}
+					
+					sscanf(fileInputStr + idx, "%02X", &temp_hex);
+					memory[iter_addr] = temp_hex;
+				}
+				// TODO : need to check!! Is it correct?
 			}
 			else if (record_type == 'M') {
-				// search ESTAB for modifying symbol name
-				found = ;
-				if () {
-					// add or subtract symbol value at location
-					// CSADDR + specified address
-				
+				sscanf(fileInputStr, "M%06X%02X%c%02X",
+						&starting_addr,
+						&num_half_byte,
+						&operator,
+						&idx);
+				// add or subtract symbol value at location
+				// CSADDR + specified address
+				if (operator == '+') {
+					temp_address =  + reference_table[idx];
+
+					for (idx = 0; idx < num_half_byte; idx++) {
+					}
 				}
-				else {
-					SEND_ERROR_MESSAGE("undefined external symbol");
-					return 1;
+				else if (operator == '-') {
+					temp_address =  - reference_table[idx];
 				}
 				
 			}
@@ -292,6 +337,7 @@ int linking_loader_pass2 (int progaddr, int argc) {
 		CSADDR += CSLTH;
 
 		iter ++;
+		fclose(object_fp);
 	}
 
 
@@ -316,15 +362,19 @@ int linking_loader_search_estab_control_section_name (const char * str, int argc
 	return 0;
 }
 
-int linking_loader_search_estab_symbol (struct __extern_symbol *extern_symbol, char * str) {
-	struct __extern_symbol * link = extern_symbol;
+int linking_loader_search_estab_symbol (ESTAB extern_symbol_table[], int argc, char * str, int * address) {
+	struct __extern_symbol * link = NULL;
+	int i = 0;
 
-
-	while (link) {
-		if (link->symbol && !strcmp(link->symbol, str)) {
-			return 1; // found
+	for (i = 0; i < argc; i++) {
+		link = extern_symbol_table[i].symbol;
+		while (link) {
+			if (link->symbol && !strcmp(link->symbol, str)) {
+				*address = link->address;
+				return 1; // found
+			}
+			link = link->next;
 		}
-		link = link->next;
 	}
 	
 	return 0; // not found
