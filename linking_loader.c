@@ -149,9 +149,8 @@ int linking_loader_pass1 (int progaddr, int argc, char *object_filename[], ESTAB
 	int CSADDR = progaddr, CSLTH = 0,
 		starting_addr = 0, relative_addr = 0,
 		**bogus_double_pointer = NULL;
-	int iter = 0;
+	int iter = 0, is_found = 0;
 	int define_record_loc = 0, define_record_length = 0;
-	int is_found = 0;
 	
 
 
@@ -232,11 +231,12 @@ int linking_loader_pass2 (int progaddr, int argc) {
 	FILE * object_fp = NULL;
 
 	char fileInputStr[150] = {0,};
+	char record_type = 0;
 
 	int CSADDR = progaddr,
-		EXECARRD = progaddr,
+		EXECADDR = progaddr,
 		CSLTH = 0;
-	int iter = 0;
+	int iter = 0, is_found = 0;
 	
 
 	while (iter < argc) { // not end of input
@@ -251,11 +251,46 @@ int linking_loader_pass2 (int progaddr, int argc) {
 		sscanf(fileInputStr, "%c%s%06X%06X", &record_type, program_name, &starting_addr, &CSLTH);
 
 		record_type = 0;
-		while (record)
+		while (record_type != 'E') {
+			// read next input record
+			fgets(fileInputStr, 150, object_fp);
+			getRecoredType(fileInputStr, record_type);
+		
+			if (record_type == 'T') {
+				// if object code is in character form,
+				// convert into internal representation
 
 
 
-	
+				// move object code from record to location
+				// CSADDR + specified address
+
+			}
+			else if (record_type == 'M') {
+				// search ESTAB for modifying symbol name
+				found = ;
+				if () {
+					// add or subtract symbol value at location
+					// CSADDR + specified address
+				
+				}
+				else {
+					SEND_ERROR_MESSAGE("undefined external symbol");
+					return 1;
+				}
+				
+			}
+
+		}
+		// if an address is specified (in End record) then
+		if () {
+			// set EXECADDR to (CSADDR + specified address)
+
+		}
+
+		// add CSLTH to CSADDR
+		CSADDR += CSLTH;
+
 		iter ++;
 	}
 
