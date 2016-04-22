@@ -14,4 +14,4 @@ $(MYPROGRAM) : $(OBJECTS)
 		$(CC) $(CFLAG) -o $@ $(OBJECTS)
 
 clean :
-		rm -f *.o $(MYPROGRAM) *.lst *.obj *.out 
+		rm -f *.o $(MYPROGRAM) *.lst *.out 

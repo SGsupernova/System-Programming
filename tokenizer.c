@@ -141,8 +141,8 @@ void tokenize_deallocate_argvs (char *** argv_ptr, int argc) {
 		int i = 0;
 
 		for (i = 0; i < argc; i++) {
-			if (!(*argc)[i]) { printf("tokenizing error!!\n"); }
-			free((*argc)[i]);
+			if (!(*argv_ptr)[i]) { printf("tokenizing error!!\n"); }
+			free((*argv_ptr)[i]);
 		}
 		
 	}

@@ -10,7 +10,7 @@
 #include "linking_loader.h"
 
 struct __extern_symbol {
-	struct _extern_symbol * next;
+	struct __extern_symbol * next;
 	char * symbol;
 	int address;
 } ;
@@ -38,13 +38,13 @@ int command_bp (struct bpLink ** bpLinkHead_ptr, const char * inputStr);
 
 
 // return error_flag
-int linking_loader_pass1();
+int linking_loader_pass1(int progaddr, int argc, char *object_filename[], ESTAB extern_symbol_table[]);
 int linking_loader_pass2();
 
 int linking_loader_search_estab_control_section_name(const char * str, int argc, ESTAB extern_symbol_table[]);
 int linking_loader_search_estab_symbol (struct __extern_symbol *extern_symbol, char * str);
 void linking_loader_enter_symbol (struct __extern_symbol **extern_symbol, char * str, int address);
-void linking_loader_print_load_map(int prog_len);
+void linking_loader_print_load_map(int argc, ESTAB extern_symbol_table[]);
 
 int linking_loader_search_control_section_name(const char * str, int argc, ESTAB extern_symbol_table[]);
 
