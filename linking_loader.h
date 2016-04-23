@@ -42,14 +42,17 @@ int linking_loader_pass1(int progaddr, int argc, char *object_filename[], ESTAB 
 int linking_loader_pass2();
 
 int linking_loader_search_estab_control_section_name(const char * str, int argc, ESTAB extern_symbol_table[]);
-int linking_loader_search_estab_symbol (struct __extern_symbol *extern_symbol, char * str);
+int linking_loader_search_estab_symbol (ESTAB extern_symbol_table[], int argc, char * str, int * address);
 void linking_loader_enter_symbol (struct __extern_symbol **extern_symbol, char * str, int address);
 void linking_loader_print_load_map(int argc, ESTAB extern_symbol_table[]);
 
 int linking_loader_search_control_section_name(const char * str, int argc, ESTAB extern_symbol_table[]);
 
+int linking_loader_fetch_objcode_from_memory (int addr, int num_half_byte);
+void linking_loader_load_memory (int addr, int num_half_byte, int objcode);
+
+
 void bp_clear(struct bpLink ** bpLinkHead_ptr);
 void bp_address(struct bpLink ** bpLinkHead_ptr, int addr);
-
 
 #endif

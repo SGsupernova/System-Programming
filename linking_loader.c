@@ -31,7 +31,7 @@ int linking_loader_main (int num_command, const char * inputStr) {
 
 		case 4 : // break point command
 			error_flag = command_bp(&bpLinkHead, inputStr);
-		break;
+			break;
 	}
 }
 
@@ -60,7 +60,7 @@ int command_loader (const char * inputStr, int progaddr) {
 	tokenizer(inputStr, &argc, &object_filename);
 
 	printf("argc : %d\n", argc);
-	
+
 	for (i = 0; i < argc; i++) {
 		printf("argv[%d] : %s\n", i, object_filename[i]);
 	}
@@ -72,7 +72,7 @@ int command_loader (const char * inputStr, int progaddr) {
 
 	for (i = 0; i < argc; i++) {
 		extension = fetch_filename_extension(object_filename[i]);
-		
+
 		if (!extension || strcmp(extension, "obj")) { // there is no extension \ error
 			SEND_ERROR_MESSAGE("(A extension must be .obj) EXTENSION");
 			return 1;
@@ -94,8 +94,8 @@ int command_loader (const char * inputStr, int progaddr) {
 	// all extensions of filenames are .obj
 
 	/*
-	linking_loader_print_load_map (prog_len, argc, extern_symbol_table);
-	*/
+	   linking_loader_print_load_map (prog_len, argc, extern_symbol_table);
+	   */
 	return 0;
 }
 
@@ -180,7 +180,7 @@ int linking_loader_pass1 (int progaddr, int argc, char *object_filename[], ESTAB
 			extern_symbol_table[iter].length				= CSLTH;
 			extern_symbol_table[iter].address				= CSADDR;
 		}
-	
+
 
 		record_type = 0;
 		while (record_type != 'E') {
@@ -227,11 +227,13 @@ int linking_loader_pass1 (int progaddr, int argc, char *object_filename[], ESTAB
 
 // need
 // progaddr / the number of object_file(argc)
-int linking_loader_pass2 (int progaddr, int argc, ESTAB extern_symbol_table[]) {
+int linking_loader_pass2 (int progaddr, int argc, char * object_filename[], ESTAB extern_symbol_table[]) {
 	FILE * object_fp = NULL;
 
 	char fileInputStr[150] = {0,};
-	char record_type = 0, reference_name[7] = {0,};
+	char record_type = 0, 
+		 reference_name[7] = {0,},
+		 program_name[7] = {0,};
 	char temp_char, operator = 0;
 
 	int CSADDR = progaddr,
@@ -244,18 +246,19 @@ int linking_loader_pass2 (int progaddr, int argc, ESTAB extern_symbol_table[]) {
 	int starting_addr = 0, num_half_byte = 0;
 
 	while (iter < argc) { // not end of input
+		printf("hello????\n");
 		object_fp = fopen(object_filename[iter], "r");
 
 		int reference_table[257] = {0,}; // 16*16 + 1
 		refer_idx = 2;
-		reference_table[1] = extern_symbol_table[iter].addr;
+		reference_table[1] = extern_symbol_table[iter].address;
 
 
 		//read next input record
 		fgets(fileInputStr, 150, object_fp);
 		getRecoredType(fileInputStr, record_type);
 
-		
+
 		// set CSLTH to control section length
 		sscanf(fileInputStr, "%c%s%06X%06X", &record_type, program_name, &starting_addr, &CSLTH);
 
@@ -265,29 +268,13 @@ int linking_loader_pass2 (int progaddr, int argc, ESTAB extern_symbol_table[]) {
 			// read next input record
 			fgets(fileInputStr, 150, object_fp);
 			getRecoredType(fileInputStr, record_type);
-		
-			if (record_type == 'R') {
-				idx = 1;
-				
-				for (; fileInputStr[idx] != '\0'; idx += 8) {
-					sscanf(fileInputStr + idx, "%02X%6s", &refer_idx, reference_name);
-					is_found = linking_loader_search_estab_symbol(extern_symbol_table, argc, reference_name, &temp_address);
 
-					if (is_found) {
-						reference_table[refer_idx] = temp_address;
-					}
-					else {
-						SEND_ERROR_MESSAGE("(linking_loader pass2) Reference record");
-						return 1;
-					}
-				}
-			}
-			else if (record_type == 'T') {
+			if (record_type == 'T') {
 				// CSADDR + specified address
 				sscanf(fileInputStr, "T%06X%02X", &iter_addr, &length_objcode);
 				iter_addr += CSADDR;
 				length_objcode *= 2;
-				
+
 
 				// move object code from record to location
 				idx = 9;
@@ -300,7 +287,7 @@ int linking_loader_pass2 (int progaddr, int argc, ESTAB extern_symbol_table[]) {
 						SEND_ERROR_MESSAGE("(linking_loader pass2) Memory overflow");
 						return 1;
 					}
-					
+
 					sscanf(fileInputStr + idx, "%02X", &temp_hex);
 					memory[iter_addr] = temp_hex;
 				}
@@ -314,23 +301,39 @@ int linking_loader_pass2 (int progaddr, int argc, ESTAB extern_symbol_table[]) {
 						&idx);
 				// add or subtract symbol value at location
 				// CSADDR + specified address
-				if (operator == '+') {
-					temp_address =  + reference_table[idx];
+				temp_address = linking_loader_fetch_objcode_from_memory (starting_addr, num_half_byte);
 
-					for (idx = 0; idx < num_half_byte; idx++) {
-					}
+				if (operator == '+') {
+					temp_address += reference_table[idx];
 				}
 				else if (operator == '-') {
-					temp_address =  - reference_table[idx];
+					temp_address -= reference_table[idx];
 				}
-				
-			}
 
+				linking_loader_load_memory (starting_addr, num_half_byte, temp_address);
+			}
+			else if (record_type == 'R') {
+				idx = 1;
+
+				for (; fileInputStr[idx] != '\0'; idx += 8) {
+					sscanf(fileInputStr + idx, "%02X%6s", &refer_idx, reference_name);
+					is_found = linking_loader_search_estab_symbol(extern_symbol_table, argc, reference_name, &temp_address);
+
+					if (is_found) {
+						reference_table[refer_idx] = temp_address;
+					}
+					else {
+						SEND_ERROR_MESSAGE("(linking_loader pass2) Reference record");
+						return 1;
+					}
+				}
+			}
 		}
 		// if an address is specified (in End record) then
-		if () {
+		if (record_type == 'E') {
 			// set EXECADDR to (CSADDR + specified address)
-
+			sscanf(fileInputStr, "E%06X", &EXECADDR);
+			EXECADDR += CSADDR;
 		}
 
 		// add CSLTH to CSADDR
@@ -339,8 +342,6 @@ int linking_loader_pass2 (int progaddr, int argc, ESTAB extern_symbol_table[]) {
 		iter ++;
 		fclose(object_fp);
 	}
-
-
 
 	return 0;
 }
@@ -358,7 +359,7 @@ int linking_loader_search_estab_control_section_name (const char * str, int argc
 			return 1;
 		}
 	}
-	
+
 	return 0;
 }
 
@@ -367,7 +368,7 @@ int linking_loader_search_estab_symbol (ESTAB extern_symbol_table[], int argc, c
 	int i = 0;
 
 	for (i = 0; i < argc; i++) {
-		link = extern_symbol_table[i].symbol;
+		link = extern_symbol_table[i].extern_symbol;
 		while (link) {
 			if (link->symbol && !strcmp(link->symbol, str)) {
 				*address = link->address;
@@ -376,7 +377,7 @@ int linking_loader_search_estab_symbol (ESTAB extern_symbol_table[], int argc, c
 			link = link->next;
 		}
 	}
-	
+
 	return 0; // not found
 }
 
@@ -419,10 +420,10 @@ void linking_loader_print_load_map(int argc, ESTAB * extern_symbol_table) {
 			printf("\t\t%-6s\t\t%4X\n",
 					link->symbol,
 					link->address
-					);
+				  );
 			link = link->next;
 		}
-		
+
 		total_length += extern_symbol_table[i].length;
 
 		if (i+1 != argc) {
@@ -450,6 +451,51 @@ int linking_loader_search_control_section_name(const char * str, int argc, ESTAB
 
 	return 0;
 }
+
+
+/*  */
+int linking_loader_fetch_objcode_from_memory (int addr, int num_half_byte) {
+	int objcode = 0;
+	int i = 0;
+
+	// the number of half bytes is odd / special case
+	if (num_half_byte % 2 == 1) {
+		objcode = memory[addr] % 16;
+		num_half_byte --;
+		addr ++;
+	}
+
+
+	for (i = 0; i < num_half_byte; i += 2) {
+		objcode *= 256;
+		objcode += memory[addr];
+	}
+
+	return objcode;
+}
+
+void linking_loader_load_memory (int addr, int num_half_byte, int objcode) {
+	int i = 0;
+	int pow = 1;
+
+	for (i = 0; i < num_half_byte; i++) {
+		pow *= 16;
+	}
+
+	if (num_half_byte % 2 == 1) {
+		memory[addr] &= 0x10;
+		memory[addr] |= ((objcode % pow) / (pow/16));
+		pow /= 16;
+		num_half_byte --;
+		addr ++;
+	}
+
+	for (i = 0; i < num_half_byte; i += 2) {
+		memory[addr] &= 0x00;
+		memory[addr] |= ((objcode % pow) / (pow / 256));
+	}
+}
+
 void bp_clear(struct bpLink ** bpLinkHead_ptr) {
 	struct bpLink * link = *bpLinkHead_ptr,
 				  * temp = NULL;
@@ -476,7 +522,7 @@ void bp_address(struct bpLink ** bpLinkHead_ptr, int addr) {
 		while (link->bpLineNum < addr  && link->next) {
 			link = link->next;
 		}
-		
+
 		// there is a node whose bpLineNum is equal to addr
 		if (link->bpLineNum == addr) {
 			free(new);
