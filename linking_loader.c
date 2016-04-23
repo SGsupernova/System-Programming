@@ -33,6 +33,8 @@ int linking_loader_main (int num_command, const char * inputStr) {
 			error_flag = command_bp(&bpLinkHead, inputStr);
 			break;
 	}
+	
+	return error_flag;
 }
 
 int command_progaddr (const char * inputStr, int * error_flag) {
@@ -346,24 +348,6 @@ int linking_loader_pass2 (int progaddr, int argc, char * object_filename[], ESTA
 
 		iter ++;
 		fclose(object_fp);
-	}
-
-	return 0;
-}
-
-
-int linking_loader_search_estab_control_section_name (const char * str, int argc, ESTAB extern_symbol_table[]) {
-	int i = 0;
-
-	if (!str) {
-		return -1;
-	}
-
-	for (i = 0; i < argc; i++) {
-		if (extern_symbol_table[i].control_section_name && 
-				!strcmp(str, extern_symbol_table[i].control_section_name)) {
-			return 1;
-		}
 	}
 
 	return 0;
