@@ -51,6 +51,7 @@ int linking_loader_search_control_section_name(const char * str, int argc, ESTAB
 int linking_loader_fetch_objcode_from_memory (int addr, int num_half_byte);
 void linking_loader_load_memory (int addr, int num_half_byte, int objcode);
 
+void linking_loader_deallocate_ESTAB (ESTAB extern_symbol_table[], int argc);
 
 void bp_clear(struct bpLink ** bpLinkHead_ptr);
 void bp_address(struct bpLink ** bpLinkHead_ptr, int addr);

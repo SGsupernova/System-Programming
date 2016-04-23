@@ -85,6 +85,8 @@ int command_loader (const char * inputStr, int progaddr) {
 		return 1;
 	}
 
+	linking_loader_deallocate_ESTAB (extern_symbol_table, argc);
+
 	return 0;
 }
 
@@ -217,6 +219,8 @@ int linking_loader_pass1 (int progaddr, int argc, char *object_filename[], ESTAB
 
 		iter += 1;
 	}
+
+	free(extern_symbol);
 
 	return 0;
 }
@@ -499,6 +503,28 @@ void linking_loader_load_memory (int addr, int num_half_byte, int objcode) {
 	}
 }
 
+void linking_loader_deallocate_ESTAB (ESTAB extern_symbol_table[], int argc) {
+	struct __extern_symbol * symbol_link = NULL,
+						   * temp_symbol;
+	int i;
+
+	for (i = 0; i < argc; i++) {
+		free(extern_symbol_table[i].control_section_name);
+
+		symbol_link = extern_symbol_table[i].extern_symbol;
+		
+		while (symbol_link) {
+			temp_symbol = symbol_link;
+			symbol_link = symbol_link->next;
+
+			free(temp_symbol->symbol);
+			free (temp_symbol);
+		}
+	}
+
+	free(extern_symbol_table);
+}
+
 void bp_clear(struct bpLink ** bpLinkHead_ptr) {
 	struct bpLink * link = *bpLinkHead_ptr,
 				  * temp = NULL;
@@ -545,6 +571,4 @@ void bp_address(struct bpLink ** bpLinkHead_ptr, int addr) {
 
 	printf("[ok] create breakpoint %04X\n", addr);
 }
-
-
 
