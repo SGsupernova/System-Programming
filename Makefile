@@ -5,7 +5,7 @@ OBJECTS = $(SOURCES:.c=.o)
 MYPROGRAM = 20141570.out
 
 CC = gcc
-CFLAG = -Wall
+CFLAG = -Wall -g
 #---------------------------------------------------------------
 
 all: $(SOURCES) $(MYPROGRAM)

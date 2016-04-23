@@ -62,7 +62,7 @@ int main () {
 		}
 
 		idx_argv = 0;
-		while ((input_str[idx_input_str] != ' ') && (input_str[idx_input_str] != 0)) {
+		while ((input_str[idx_input_str] != ' ' && input_str[idx_input_str] != '\t') && (input_str[idx_input_str] != 0)) {
 			command[idx_argv++] = input_str[idx_input_str++];
 		}
 		command[idx_argv] = 0;

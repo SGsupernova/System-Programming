@@ -191,7 +191,7 @@ void command_opcodelist(void) {
 		printf("%d : ", i);
 
 		while (tmp) {
-			printf("[%s,%d]", tmp->mnemonic, tmp->opcode);
+			printf("[%s,%02X]", tmp->mnemonic, tmp->opcode);
 			if (tmp->next) {
 				printf(" -> ");
 			}
