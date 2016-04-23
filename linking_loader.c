@@ -159,6 +159,10 @@ int linking_loader_pass1 (int progaddr, int argc, char *object_filename[], ESTAB
 		// set CSLTH to control section length
 		sscanf(fileInputStr, "%c%s%06X%06X", &record_type, program_name, &starting_addr, &CSLTH);
 
+		if (starting_addr != 0) {
+			CSADDR -= starting_addr;
+		}
+
 		is_found = linking_loader_search_control_section_name(program_name, argc, extern_symbol_table);	// search ESTAB for control section name
 		if (is_found == 1) {
 			SEND_ERROR_MESSAGE("DUPLICATE EXTERNAL SYMBOL");
@@ -207,6 +211,9 @@ int linking_loader_pass1 (int progaddr, int argc, char *object_filename[], ESTAB
 		// add CSLTH to CSADDR
 		CSADDR += CSLTH;
 
+		if (starting_addr != 0) {
+			CSADDR += starting_addr;
+		}
 
 		iter += 1;
 	}
