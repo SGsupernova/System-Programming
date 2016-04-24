@@ -25,6 +25,15 @@ In shell,
 	- assemble filename
 	- type filename
 	- symbol
+	- progaddr [address]
+	- loader [object filename1] [object filename2] [...]\n");
+	- run
+	- bp [address]
+	- bp clear
+
+
+	When if you type bp, then the SHELL shows all break points.
+	[object filename]'s extension is only allowed ".obj"
 
 
 	If you do not type as the form suggested, this shell does not execute the command you want and prints the error message.

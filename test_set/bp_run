@@ -1,0 +1,8 @@
+bp 4010
+bp 4020
+progaddr 4000
+loader proga.obj progb.obj progc.obj
+run
+run
+run
+quit

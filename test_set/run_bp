@@ -1,0 +1,14 @@
+progaddr 0
+loader copy.obj
+dump 0, 0040
+dump 1030, 1080
+bp A
+bp 3
+bp 20
+run
+run
+run
+run
+bp
+bp clear
+quit

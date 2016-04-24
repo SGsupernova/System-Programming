@@ -138,22 +138,24 @@ int command_run (struct RUN_PARAM* run_param_set, const unsigned char break_poin
 		3, 3, 3, 3
 	};
 
-	int loop = 1;
-
+	// new start
 	if (!(run_param_set->break_flag)) {
 		run_param_set->reg[2] = 0xFFFFFF;
 		run_param_set->reg[8] = current_addr = run_param_set->EXECADDR;
 	}
 
 	while (1) {
-
 		objcode = 0;
 		current_addr = run_param_set->reg[8];
+		
+		// 0xFFFFFF means Bootstrap address so
+		// this means program end
 		if (run_param_set->reg[8] == 0xFFFFFF) {
 			print_register_set(*run_param_set);
 			return 0;
 		}
 
+		// if we meet break point!
 		if (break_point_addr[current_addr]) {
 			if (break_addr != current_addr) {
 				break_addr = current_addr;
@@ -171,8 +173,8 @@ int command_run (struct RUN_PARAM* run_param_set, const unsigned char break_poin
 		opcode = memory[current_addr] - memory[current_addr] % 4;
 		ni = memory[current_addr] % 4;
 
-//		printf("opcode : %02X\n", opcode);
 
+		// get opcode format
 		opcode_flag = 0;
 		for (i = 0; i < 20; i++) {
 			if (opcode_set[i] == opcode) {
@@ -206,10 +208,11 @@ int command_run (struct RUN_PARAM* run_param_set, const unsigned char break_poin
 
 		}
 
+
 		// increasing register PC
 		current_addr = run_param_set->reg[8] += opcode_format;
 
-
+		// make Target address -> using addr
 		if (opcode_format == 3 || opcode_format == 4) {
 			addr = run_get_addr(objcode, opcode_format, run_param_set) + run_param_set->progaddr;
 
@@ -221,8 +224,8 @@ int command_run (struct RUN_PARAM* run_param_set, const unsigned char break_poin
 			}
 			/***************/
 		}
-//		printf("addr : %x\n", addr);
 
+		// execute
 		switch (opcode) {
 			// format 2
 			case 0xB4 : // CLEAR
@@ -324,7 +327,6 @@ int command_run (struct RUN_PARAM* run_param_set, const unsigned char break_poin
 
 			case 0x3C : // J
 				run_param_set->reg[8] = addr;
-				printf("run_param_set : %x\n", run_param_set->reg[8]);
 				break;
 			case 0x28 : // COMP
 				if (run_param_set->reg[0] < addr) {
@@ -358,7 +360,6 @@ int command_run (struct RUN_PARAM* run_param_set, const unsigned char break_poin
 				SEND_ERROR_MESSAGE("(run) opcode error");
 				break;
 		}
-//		run_param_set->reg[8] = current_addr;
 	}
 
 	return 0;
@@ -371,7 +372,7 @@ int command_bp (unsigned char break_point_addr[], const char * inputStr) {
 
 	tokenizer(inputStr, &argc, &argv);
 
-	// error
+	// does not have argument
 	if (!argc) {
 		printf("breakpoint\n");
 		printf("----------\n");
@@ -437,7 +438,6 @@ int linking_loader_pass1 (int progaddr, int argc, char *object_filename[], ESTAB
 		// read next input record
 		fgets(fileInputStr, 150, object_fp);
 		getRecoredType(fileInputStr, record_type);
-		// TODO : Record가 H가 아닌 경우에 대해서 Error handling을 해야한다.
 
 		// set CSLTH to control section length
 		sscanf(fileInputStr, "%c%s%06X%06X", &record_type, program_name, &starting_addr, &CSLTH);
@@ -654,6 +654,7 @@ int linking_loader_search_estab_symbol (ESTAB extern_symbol_table[], int argc, c
 	return 0; // not found
 }
 
+// insert symbol in ESTAB
 void linking_loader_enter_symbol (struct __extern_symbol **extern_symbol_ptr, char * str, int address) {
 	struct __extern_symbol * new = NULL,
 						   * link = *extern_symbol_ptr;
@@ -673,6 +674,8 @@ void linking_loader_enter_symbol (struct __extern_symbol **extern_symbol_ptr, ch
 	}
 }
 
+
+// print load map function 
 void linking_loader_print_load_map(int argc, ESTAB * extern_symbol_table) {
 	int i = 0, total_length = 0;
 
@@ -709,7 +712,7 @@ void linking_loader_print_load_map(int argc, ESTAB * extern_symbol_table) {
 	printf("\t\t\t\ttotal length\t%04X\n", total_length);
 }
 
-// TODO : loader를 다시 수행했을 때 어떤 일이 발생하는지 체크
+// find control_section_name in ESTAB
 int linking_loader_search_control_section_name(const char * str, int argc, ESTAB extern_symbol_table[]) {
 	int i = 0;
 
@@ -726,6 +729,7 @@ int linking_loader_search_control_section_name(const char * str, int argc, ESTAB
 }
 
 
+// get object code(length is the number of half bytes(num_half_byte)) from memory 
 int linking_loader_fetch_objcode_from_memory (int addr, int num_half_byte) {
 	int objcode = 0;
 	int i = 0, sign = 1;
@@ -746,16 +750,18 @@ int linking_loader_fetch_objcode_from_memory (int addr, int num_half_byte) {
 	return objcode;
 }
 
+
+// loading objcode on memory
 void linking_loader_load_memory (int addr, int num_half_byte, int objcode) {
 	int i = 0;
 	int pow = 1;
 	unsigned int unsigned_objcode = objcode;
 
-
 	for (i = 0; i < num_half_byte; i++) {
 		pow *= 16;
 	}
 
+	// number of half bytes is odd
 	if (num_half_byte % 2 == 1) {
 		memory[addr] &= 0x10;
 		memory[addr] |= ((unsigned_objcode % pow) / (pow/16));
@@ -770,6 +776,7 @@ void linking_loader_load_memory (int addr, int num_half_byte, int objcode) {
 	}
 }
 
+// deallocate ESTAB
 void linking_loader_deallocate_ESTAB (ESTAB extern_symbol_table[], int argc) {
 	struct __extern_symbol * symbol_link = NULL,
 						   * temp_symbol;
@@ -792,6 +799,7 @@ void linking_loader_deallocate_ESTAB (ESTAB extern_symbol_table[], int argc) {
 	free(extern_symbol_table);
 }
 
+// break point clear
 void bp_clear(unsigned char break_point_addr[]) {
 	int i = 0;
 
@@ -802,12 +810,14 @@ void bp_clear(unsigned char break_point_addr[]) {
 	printf("[ok] clear all breakpoints\n");
 }
 
+// command line : bp address
 void bp_address(unsigned char break_point_addr[], int addr) {
 	break_point_addr[addr] = 1;
 
 	printf("[ok] create breakpoint %04X\n", addr);
 }
 
+// In command_run(), we need to get Target address in object and make this function.
 int run_get_addr (unsigned int objcode, int opcode_format, struct RUN_PARAM * run_param_set) {
 	unsigned int disp = 0;
 	int addr = 0;
@@ -820,11 +830,9 @@ int run_get_addr (unsigned int objcode, int opcode_format, struct RUN_PARAM * ru
 
 		disp = objcode & 0xFFF;
 	
-//		printf("disp : %x\n",disp);
 
 		if (disp & 0x800) {
 			disp = disp | 0xFFFFF000;
-//			printf("0---------------after disp : %x, %d\n", (int)disp, (int)disp);
 		}
 
 		if (p) {
@@ -853,6 +861,7 @@ int run_get_addr (unsigned int objcode, int opcode_format, struct RUN_PARAM * ru
 	return addr;
 }
 
+// print a register set 
 void print_register_set (struct RUN_PARAM run_param_set) {
 	printf("\tA : %06X X : %06X\n", 
 			run_param_set.reg[0], 

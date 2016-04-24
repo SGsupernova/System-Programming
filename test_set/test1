@@ -1,0 +1,6 @@
+progaddr 4000
+loader proga.obj progb.obj progc.obj
+dump 4000, 4132
+loader proga.obj progb.obj progc.obj
+dump 4000, 4132
+quit
