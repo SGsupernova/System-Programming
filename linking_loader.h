@@ -7,6 +7,8 @@
 #define getRecoredType(str, record_type) sscanf(str, "%c", &record_type)
 #define USE_NUM_OPCODE 20
 
+#define check_def printf("addr : %06X/ num_half_byte : %d/run_param_set->reg[2] : %04X\n", addr, num_half_byte, run_param_set->reg[2])
+
 #include "20141570.h"
 #include "linking_loader.h"
 

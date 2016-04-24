@@ -32,7 +32,7 @@ int linking_loader_main (int num_command, const char * inputStr) {
 				run_param_set.break_flag = 0;
 				run_param_set.progaddr = progaddr;
 				run_param_set.EXECADDR = EXECADDR;
-				
+
 				for (i = 0; i < 10; i++) {
 					run_param_set.reg[i] = 0;
 				}
@@ -122,6 +122,7 @@ int command_run (struct RUN_PARAM* run_param_set, const unsigned char break_poin
 	int ni = 0, addr = 0, temp_int = 0, i;
 	int r1, r2;
 	int num_half_byte, indirect_addr = 0;
+	unsigned int L_stack[100] = {0,}, top = -1;
 
 	const int opcode_set[USE_NUM_OPCODE] = {
 		0xB4, 0x00, 0xB8, 0x0C, // CLEAR,	LDA,	TIXR,	STA
@@ -141,12 +142,15 @@ int command_run (struct RUN_PARAM* run_param_set, const unsigned char break_poin
 	if (!(run_param_set->break_flag)) {
 		run_param_set->reg[2] = 0xFFFFFF;
 		run_param_set->reg[8] = current_addr = run_param_set->EXECADDR;
+		L_stack[++top] = 0xFFFFFF;
 	}
 
 	while (1) {
-		if (current_addr >= 0x100000) {
+		objcode = 0;
+//		printf("\n\n-------------------------------------------------------\n");
+//		printf("-------------------------------------------------------\n");
+		if (run_param_set->reg[2] == run_param_set->reg[2]) {
 			print_register_set(*run_param_set);
-			printf("END Program.\n");
 			return 0;
 		}
 
@@ -155,7 +159,7 @@ int command_run (struct RUN_PARAM* run_param_set, const unsigned char break_poin
 				break_addr = current_addr;
 				run_param_set->break_flag = 0;
 				print_register_set(*run_param_set);
-				printf("Stop at checkpoint[%04X]\n", current_addr);
+//				printf("Stop at checkpoint[%04X]\n", current_addr);
 				return 0;
 			}
 			else {
@@ -164,7 +168,7 @@ int command_run (struct RUN_PARAM* run_param_set, const unsigned char break_poin
 		}
 
 		// fetch1
-		printf("memory[%04X] : %04X\n", current_addr, memory[current_addr]);
+//		printf("memory[%06X] : %02X\n", current_addr, memory[current_addr]);
 		opcode = memory[current_addr] - memory[current_addr] % 4;
 		ni = memory[current_addr] % 4;
 
@@ -177,7 +181,7 @@ int command_run (struct RUN_PARAM* run_param_set, const unsigned char break_poin
 			}
 		}
 
-		printf("opcode : %04X\n", opcode);
+//		printf("opcode : %04X\n", opcode);
 		if (!opcode_flag) { // invalid opcode
 			SEND_ERROR_MESSAGE("(command_run) invalid opcode");
 			return 1;
@@ -186,46 +190,45 @@ int command_run (struct RUN_PARAM* run_param_set, const unsigned char break_poin
 		// make objcode
 		objcode = memory[current_addr] * 0x100 + memory[current_addr + 1];
 
-		if (opcode_format == 3) {
+//		printf("objcode : %04X\n", objcode);
+
+		if (opcode_format == 2) {
+			num_half_byte = 4;
+		}
+		else if (opcode_format == 3) {
 			objcode = objcode * 0x100 + memory[current_addr + 2];
-			
+
 			num_half_byte = 6;
 			if (objcode & 0x001000) { // extension -> format 4
 				opcode_format = 4;
 				objcode = objcode * 0x100 + memory[current_addr + 3];
 				num_half_byte = 8;
 			}
-			
+
 		}
 
 		// increasing register PC
-		run_param_set->reg[8] += opcode_format;
+		current_addr = run_param_set->reg[8] += opcode_format;
 
-		addr = run_get_addr(objcode, opcode_format, run_param_set) + run_param_set->progaddr;
+//		printf("later objcode : %06X\n", objcode);
 
-		objcode = linking_loader_fetch_objcode_from_memory(addr, num_half_byte);
-		/***************/
-		// address setting
-		if (ni == 1) { // immediate
-		}
-		else if (ni == 2) { // indirect
-			indirect_addr = run_get_addr(objcode, opcode_format, run_param_set);
-			objcode = linking_loader_fetch_objcode_from_memory(indirect_addr, num_half_byte);
-			addr = run_get_addr(objcode, opcode_format, run_param_set);
+		if (opcode_format == 3 || opcode_format == 4) {
+			addr = run_get_addr(objcode, opcode_format, run_param_set) + run_param_set->progaddr;
+
 			objcode = linking_loader_fetch_objcode_from_memory(addr, num_half_byte);
+			/***************/
+			// address setting
+			if (ni == 2) { // indirect
+				addr = objcode;
+			}
+			/***************/
 		}
-		else if (ni == 3) { // simple addressing
-			addr = run_get_addr(objcode, opcode_format, run_param_set);
-			objcode = linking_loader_fetch_objcode_from_memory(addr, num_half_byte);
-		}
-		/***************/
-
-		current_addr += opcode_format;
 
 		switch (opcode) {
 			// format 2
 			case 0xB4 : // CLEAR
 				temp_int = objcode & 0x00F0;
+				temp_int = temp_int >> 4;
 				if (temp_int < 0 || temp_int > 9) {
 					SEND_ERROR_MESSAGE ("(run) CLEAR object code(r1)");
 					return 1;
@@ -236,7 +239,9 @@ int command_run (struct RUN_PARAM* run_param_set, const unsigned char break_poin
 			case 0xA0 : // COMPR
 				r1 = objcode & 0x00F0;
 				r2 = objcode & 0x000F;
-				 
+
+				r1 = r1 >> 4;
+
 				if (r1 < 0 || r1 > 9) {
 					SEND_ERROR_MESSAGE ("(run) COMPR object code(r1)");
 					return 1;
@@ -245,7 +250,7 @@ int command_run (struct RUN_PARAM* run_param_set, const unsigned char break_poin
 					SEND_ERROR_MESSAGE ("(run) COMPR object code(r2)");
 					return 1;
 				}
-				
+
 				if (r1 < r2) {
 					run_param_set->reg[9] = -1;
 				}
@@ -270,9 +275,9 @@ int command_run (struct RUN_PARAM* run_param_set, const unsigned char break_poin
 				}
 				break;
 
-		
-			// format 3/4
-			// load
+
+				// format 3/4
+				// load
 			case 0x00 : // LDA
 				run_param_set->reg[0] = run_get_addr (objcode, opcode_format, run_param_set);
 				break;
@@ -289,7 +294,7 @@ int command_run (struct RUN_PARAM* run_param_set, const unsigned char break_poin
 				run_param_set->reg[5] = run_get_addr(objcode, opcode_format, run_param_set);
 				break;
 
-			// store
+				// store
 			case 0x0C : // STA
 				linking_loader_load_memory(addr, num_half_byte, run_param_set->reg[0]);
 				break;
@@ -341,18 +346,24 @@ int command_run (struct RUN_PARAM* run_param_set, const unsigned char break_poin
 				break;
 
 			case 0x48 : // JSUB
+				L_stack[++top] = current_addr;
 				run_param_set->reg[2] = run_param_set->reg[8];
 				current_addr = run_param_set->reg[8] = addr;
 				break;
 			case 0x4C : // RSUB
-				run_param_set->reg[8] = run_param_set->reg[2];
+				current_addr = run_param_set->reg[8] = run_param_set->reg[2];
+				run_param_set->reg[2] = L_stack[--top];
 				break;
 			default :
 				SEND_ERROR_MESSAGE("(run) opcode error");
 				break;
 		}
-
-		run_param_set->reg[8] = current_addr;
+/*
+		if (run_param_set->reg[8] == run_param_set->reg[2]) {
+			break;
+		}
+*/		
+//		run_param_set->reg[8] = current_addr;
 	}
 
 	return 0;
@@ -807,12 +818,12 @@ int run_get_addr (int objcode, int opcode_format, struct RUN_PARAM * run_param_s
 	int x = 0, b = 0, p = 0;
 
 	if (opcode_format == 3) {
-		x = 0x008000;
-		b = 0x004000;
-		p = 0x002000;
+		x = objcode & 0x008000;
+		b = objcode & 0x004000;
+		p = objcode & 0x002000;
 
 		disp = objcode & 0xFFF;
-		
+
 		if (p) {
 			addr = disp + run_param_set->reg[8];
 		}
@@ -825,9 +836,9 @@ int run_get_addr (int objcode, int opcode_format, struct RUN_PARAM * run_param_s
 		}
 	}
 	else if (opcode_format == 4){
-		x = 0x00800000;
-		b = 0x00400000;
-		p = 0x00200000;
+		x = objcode & 0x00800000;
+		b = objcode & 0x00400000;
+		p = objcode & 0x00200000;
 
 		disp = objcode & 0xFFFF;
 		addr = disp;
@@ -843,15 +854,15 @@ void print_register_set (struct RUN_PARAM run_param_set) {
 	printf("\tA : %06X X : %06X\n", 
 			run_param_set.reg[0], 
 			run_param_set.reg[1]
-			);
+		  );
 	printf("\tL : %06X PC : %06X\n", 
 			run_param_set.reg[2], 
 			run_param_set.reg[8]
-			);
+		  );
 	printf("\tB : %06X S : %06X\n",
 			run_param_set.reg[3],
 			run_param_set.reg[4]
-			);
+		  );
 	printf("\tT : %06X\n", run_param_set.reg[5]);
 	printf("End program.\n");
 }
