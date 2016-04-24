@@ -5,13 +5,19 @@
 #include <stdlib.h>
 
 int linking_loader_main (int num_command, const char * inputStr) {
-	static struct bpLink * bpLinkHead = NULL;
+	static unsigned char *break_point_addr = NULL;
+	static struct RUN_PARAM run_param_set;
 	static int progaddr = 0;
+	static int EXECADDR = 0;
 
-	struct reg regSet;
 
 	int temp_int = 0;
 	int error_flag = 0;
+	int i = 0;
+
+	if (!break_point_addr) {
+		break_point_addr = (unsigned char *) calloc (MEMORY_SIZE, sizeof(unsigned char));
+	}
 
 	switch (num_command) {
 		case 1 : // progaddr command
@@ -21,19 +27,28 @@ int linking_loader_main (int num_command, const char * inputStr) {
 			break;
 
 		case 2: // loader command
-			error_flag = command_loader(inputStr, progaddr);
+			error_flag = command_loader(inputStr, progaddr, &EXECADDR);
+			if (!error_flag) {
+				run_param_set.break_flag = 0;
+				run_param_set.progaddr = progaddr;
+				run_param_set.EXECADDR = EXECADDR;
+				
+				for (i = 0; i < 10; i++) {
+					run_param_set.reg[i] = 0;
+				}
+				run_param_set.reg[2] = 0xFFFFFF;
+			}
 			break;
 
 		case 3 : // run command
-			initRegister(&regSet);
-			command_run(regSet);
+			command_run(&run_param_set, break_point_addr);
 			break;
 
 		case 4 : // break point command
-			error_flag = command_bp(&bpLinkHead, inputStr);
+			error_flag = command_bp(break_point_addr, inputStr);
 			break;
 	}
-	
+
 	return error_flag;
 }
 
@@ -51,7 +66,7 @@ int command_progaddr (const char * inputStr, int * error_flag) {
 	return progaddr;
 }
 
-int command_loader (const char * inputStr, int progaddr) {
+int command_loader (const char * inputStr, int progaddr, int * EXECADDR) {
 	char ** object_filename = NULL,
 		 * extension = NULL;
 	int argc = 0, i = 0;
@@ -59,6 +74,8 @@ int command_loader (const char * inputStr, int progaddr) {
 	int error_flag = 0;
 	ESTAB * extern_symbol_table = NULL;
 
+
+	// get object filenames
 	tokenizer(inputStr, &argc, &object_filename);
 
 	if (!argc) { // there is no argument
@@ -66,6 +83,7 @@ int command_loader (const char * inputStr, int progaddr) {
 		return 1;
 	}
 
+	// error check : whether this object filename's extension is .obj
 	for (i = 0; i < argc; i++) {
 		extension = fetch_filename_extension(object_filename[i]);
 
@@ -75,47 +93,302 @@ int command_loader (const char * inputStr, int progaddr) {
 		}
 	}
 
-	extern_symbol_table = (ESTAB*) calloc(argc, sizeof(ESTAB));
 
+	extern_symbol_table = (ESTAB*) calloc(argc, sizeof(ESTAB)); // make extern_symbol_table
+
+
+	// linking loader pass1, pass2
 	if (error_flag = linking_loader_pass1 (progaddr, argc, object_filename, extern_symbol_table)) {
+		return 1;
+	}
+	if (error_flag = linking_loader_pass2 (progaddr, argc, object_filename, extern_symbol_table, EXECADDR)) {
 		return 1;
 	}
 
 	linking_loader_print_load_map (argc, extern_symbol_table);
 
-	if (error_flag = linking_loader_pass2 (progaddr, argc, object_filename, extern_symbol_table)) {
-		return 1;
-	}
-
+	// deallocate
 	linking_loader_deallocate_ESTAB (extern_symbol_table, argc);
+	tokenize_deallocate_argvs(&object_filename, argc);
 
 	return 0;
 }
 
-int command_run (struct reg regSet) {
+int command_run (struct RUN_PARAM* run_param_set, const unsigned char break_point_addr[]) {
+	static int current_addr = 0, break_addr = 0x100000;
+	unsigned int objcode = 0;
+	unsigned char opcode = 0;
+	int opcode_flag = 0, opcode_format = 0;
+	int ni = 0, addr = 0, temp_int = 0, i;
+	int r1, r2;
+	int num_half_byte, indirect_addr = 0;
 
-	print_register_set(regSet);
-	printf("\tEnd program.\n");
+	const int opcode_set[USE_NUM_OPCODE] = {
+		0xB4, 0x00, 0xB8, 0x0C, // CLEAR,	LDA,	TIXR,	STA
+		0x54, 0x38, 0xDC, 0x30, // STCH,	JLT,	WD,		JEQ
+		0x4C, 0x68, 0x3C, 0x10, // RSUB,	LDB,	J,		STX
+		0x28, 0xE0, 0xA0, 0xD8, // COMP,	TD,		COMPR,	RD
+		0x50, 0x48, 0x14, 0x74	// LDCH,	JSUB,	STL,	LDT
+	};
+	const int opcode_set_format[USE_NUM_OPCODE] = {
+		2, 3, 2, 3,
+		3, 3, 3, 3,
+		3, 3, 3, 3,
+		3, 3, 2, 3,
+		3, 3, 3, 3
+	};
+
+	if (!(run_param_set->break_flag)) {
+		run_param_set->reg[2] = 0xFFFFFF;
+		run_param_set->reg[8] = current_addr = run_param_set->EXECADDR;
+	}
+
+	while (1) {
+		if (current_addr >= 0x100000) {
+			print_register_set(*run_param_set);
+			printf("END Program.\n");
+			return 0;
+		}
+
+		if (break_point_addr[current_addr]) {
+			if (break_addr != current_addr) {
+				break_addr = current_addr;
+				run_param_set->break_flag = 0;
+				print_register_set(*run_param_set);
+				printf("Stop at checkpoint[%04X]\n", current_addr);
+				return 0;
+			}
+			else {
+				break_addr = 0x1000000; // break address initialize
+			}
+		}
+
+		// fetch1
+		printf("memory[%04X] : %04X\n", current_addr, memory[current_addr]);
+		opcode = memory[current_addr] - memory[current_addr] % 4;
+		ni = memory[current_addr] % 4;
+
+		opcode_flag = 0;
+		for (i = 0; i < 20; i++) {
+			if (opcode_set[i] == opcode) {
+				opcode_flag = 1;
+				opcode_format = opcode_set_format[i];
+				break;
+			}
+		}
+
+		printf("opcode : %04X\n", opcode);
+		if (!opcode_flag) { // invalid opcode
+			SEND_ERROR_MESSAGE("(command_run) invalid opcode");
+			return 1;
+		}
+
+		// make objcode
+		objcode = memory[current_addr] * 0x100 + memory[current_addr + 1];
+
+		if (opcode_format == 3) {
+			objcode = objcode * 0x100 + memory[current_addr + 2];
+			
+			num_half_byte = 6;
+			if (objcode & 0x001000) { // extension -> format 4
+				opcode_format = 4;
+				objcode = objcode * 0x100 + memory[current_addr + 3];
+				num_half_byte = 8;
+			}
+			
+		}
+
+		// increasing register PC
+		run_param_set->reg[8] += opcode_format;
+
+		addr = run_get_addr(objcode, opcode_format, run_param_set) + run_param_set->progaddr;
+
+		objcode = linking_loader_fetch_objcode_from_memory(addr, num_half_byte);
+		/***************/
+		// address setting
+		if (ni == 1) { // immediate
+		}
+		else if (ni == 2) { // indirect
+			indirect_addr = run_get_addr(objcode, opcode_format, run_param_set);
+			objcode = linking_loader_fetch_objcode_from_memory(indirect_addr, num_half_byte);
+			addr = run_get_addr(objcode, opcode_format, run_param_set);
+			objcode = linking_loader_fetch_objcode_from_memory(addr, num_half_byte);
+		}
+		else if (ni == 3) { // simple addressing
+			addr = run_get_addr(objcode, opcode_format, run_param_set);
+			objcode = linking_loader_fetch_objcode_from_memory(addr, num_half_byte);
+		}
+		/***************/
+
+		current_addr += opcode_format;
+
+		switch (opcode) {
+			// format 2
+			case 0xB4 : // CLEAR
+				temp_int = objcode & 0x00F0;
+				if (temp_int < 0 || temp_int > 9) {
+					SEND_ERROR_MESSAGE ("(run) CLEAR object code(r1)");
+					return 1;
+				}
+				run_param_set->reg[temp_int] = 0;
+				break;
+
+			case 0xA0 : // COMPR
+				r1 = objcode & 0x00F0;
+				r2 = objcode & 0x000F;
+				 
+				if (r1 < 0 || r1 > 9) {
+					SEND_ERROR_MESSAGE ("(run) COMPR object code(r1)");
+					return 1;
+				}
+				if (r2 < 0 || r2 > 9) {
+					SEND_ERROR_MESSAGE ("(run) COMPR object code(r2)");
+					return 1;
+				}
+				
+				if (r1 < r2) {
+					run_param_set->reg[9] = -1;
+				}
+				else if (r1 == r2) {
+					run_param_set->reg[9] = 0;
+				}
+				else {
+					run_param_set->reg[9] = 1;
+				}
+				break;
+			case 0xB8 : // TIXR
+				run_param_set->reg[1]++;
+
+				if (r1 < r2) {
+					run_param_set->reg[9] = -1;
+				}
+				else if (r1 == r2) {
+					run_param_set->reg[9] = 0;
+				}
+				else {
+					run_param_set->reg[9] = 1;
+				}
+				break;
+
+		
+			// format 3/4
+			// load
+			case 0x00 : // LDA
+				run_param_set->reg[0] = run_get_addr (objcode, opcode_format, run_param_set);
+				break;
+
+			case 0x68 : // LDB
+				run_param_set->reg[3] = run_get_addr(objcode, opcode_format, run_param_set);
+				break;
+
+			case 0x50 : // LDCH
+				run_param_set->reg[0] = run_param_set->reg[0] & 0xFFFF00;
+				run_param_set->reg[0] += run_get_addr(objcode, opcode_format, run_param_set) & 0x0000FF;
+				break;
+			case 0x74 : // LDT
+				run_param_set->reg[5] = run_get_addr(objcode, opcode_format, run_param_set);
+				break;
+
+			// store
+			case 0x0C : // STA
+				linking_loader_load_memory(addr, num_half_byte, run_param_set->reg[0]);
+				break;
+			case 0x54 : // STCH
+				linking_loader_load_memory(addr, num_half_byte, run_param_set->reg[0] & 0x0000FF);
+				break;
+			case 0x10 : // STX
+				linking_loader_load_memory(addr, num_half_byte, run_param_set->reg[1]);
+				break;
+			case 0x14 : // STL
+				linking_loader_load_memory(addr, num_half_byte, run_param_set->reg[2]);
+				break;
+
+
+
+			case 0x38 : // JLT
+				if (run_param_set->reg[9] < 0) {
+					run_param_set->reg[8] = addr;
+				}
+				break;
+			case 0x30 : // JEQ
+				if (run_param_set->reg[9] == 0) {
+					run_param_set->reg[8] = addr;
+				}
+				break;
+
+			case 0x3C : // J
+				run_param_set->reg[8] = addr;
+				break;
+			case 0x28 : // COMP
+				if (run_param_set->reg[0] < addr) {
+					run_param_set->reg[9] = -1;
+				}
+				else if (run_param_set->reg[0] == addr) {
+					run_param_set->reg[9] = 0;
+				}
+				else if (run_param_set->reg[0] > addr) {
+					run_param_set->reg[9] = 1;
+				}
+				break;
+
+			case 0xE0 : // TD
+				run_param_set->reg[9] = -1;
+				break;
+			case 0xD8 : // RD
+				run_param_set->reg[0] = 0;
+				break;
+			case 0xDC : // WD
+				break;
+
+			case 0x48 : // JSUB
+				run_param_set->reg[2] = run_param_set->reg[8];
+				current_addr = run_param_set->reg[8] = addr;
+				break;
+			case 0x4C : // RSUB
+				run_param_set->reg[8] = run_param_set->reg[2];
+				break;
+			default :
+				SEND_ERROR_MESSAGE("(run) opcode error");
+				break;
+		}
+
+		run_param_set->reg[8] = current_addr;
+	}
+
+	return 0;
 }
 
-// return is_error
-int command_bp (struct bpLink ** bpLinkHead_ptr, const char * inputStr) {
+int command_bp (unsigned char break_point_addr[], const char * inputStr) {
 	int argc = 0, addr = 0, error_flag = 0;
 	char ** argv = NULL;
+	int idx = 0;
 
 	tokenizer(inputStr, &argc, &argv);
 
 	// error
-	if (argc != 1) {
+	if (!argc) {
+		printf("breakpoint\n");
+		printf("----------\n");
+
+		for (idx = 0; idx < MEMORY_SIZE; idx++) {
+			if (break_point_addr[idx]) {
+				printf("%04X\n", idx);
+			}
+		}
+
+		return 0;
+	}
+	else if (argc != 1){
 		SEND_ERROR_MESSAGE("FORMAT DOES NOT MATCH THIS COMMAND");
 		return 1;
 	}
 
+	// break point address
 	addr = strtoi(argv[0], &error_flag, 16);
 
 	if (error_flag) {
 		if (argv[0] && !strcmp(argv[0], "clear")) { // bp clear
-			bp_clear(bpLinkHead_ptr);
+			bp_clear(break_point_addr);
 		}
 		else {
 			SEND_ERROR_MESSAGE("ARGUMENT");
@@ -127,7 +400,7 @@ int command_bp (struct bpLink ** bpLinkHead_ptr, const char * inputStr) {
 		return 1;
 	}
 	else { // bp address
-		bp_address(bpLinkHead_ptr, addr);
+		bp_address(break_point_addr, addr);
 	}
 
 	return 0;
@@ -230,7 +503,7 @@ int linking_loader_pass1 (int progaddr, int argc, char *object_filename[], ESTAB
 
 // need
 // progaddr / the number of object_file(argc)
-int linking_loader_pass2 (int progaddr, int argc, char * object_filename[], ESTAB extern_symbol_table[]) {
+int linking_loader_pass2 (int progaddr, int argc, char * object_filename[], ESTAB extern_symbol_table[], int * EXECADDR) {
 	FILE * object_fp = NULL;
 
 	char record_type = 0, 
@@ -240,7 +513,6 @@ int linking_loader_pass2 (int progaddr, int argc, char * object_filename[], ESTA
 	char fileInputStr[150] = {0,};
 
 	int CSADDR = progaddr,
-		EXECADDR = progaddr,
 		CSLTH = 0,
 		iter_addr = 0;
 	int iter = 0, idx = 0, refer_idx = 0, is_found = 0,
@@ -248,9 +520,12 @@ int linking_loader_pass2 (int progaddr, int argc, char * object_filename[], ESTA
 	int length_objcode = 0, length_str = 0, limit_text = 0;
 	int starting_addr = 0, num_half_byte = 0;
 
+	*EXECADDR = progaddr;
+
 	while (iter < argc) { // not end of input
 		object_fp = fopen(object_filename[iter], "r");
 
+		// referemce table : to mapping reference numbers and its address
 		int reference_table[257] = {0,}; // 16*16 + 1
 		refer_idx = 2;
 		reference_table[1] = extern_symbol_table[iter].address;
@@ -319,6 +594,7 @@ int linking_loader_pass2 (int progaddr, int argc, char * object_filename[], ESTA
 				linking_loader_load_memory (starting_addr, num_half_byte, temp_address);
 			}
 			else if (record_type == 'R') {
+				// make reference number table and store a address
 				length_str = strlen(fileInputStr);
 				fileInputStr[length_str--] = 0;
 
@@ -339,8 +615,8 @@ int linking_loader_pass2 (int progaddr, int argc, char * object_filename[], ESTA
 		// if an address is specified (in End record) then
 		if (record_type == 'E') {
 			// set EXECADDR to (CSADDR + specified address)
-			sscanf(fileInputStr, "E%06X", &EXECADDR);
-			EXECADDR += CSADDR;
+			sscanf(fileInputStr, "E%06X", EXECADDR);
+			(*EXECADDR) += CSADDR;
 		}
 
 		// add CSLTH to CSADDR
@@ -353,6 +629,7 @@ int linking_loader_pass2 (int progaddr, int argc, char * object_filename[], ESTA
 	return 0;
 }
 
+// search symbol in external symbol table
 int linking_loader_search_estab_symbol (ESTAB extern_symbol_table[], int argc, char * str, int * address) {
 	struct __extern_symbol * link = NULL;
 	int i = 0;
@@ -496,7 +773,7 @@ void linking_loader_deallocate_ESTAB (ESTAB extern_symbol_table[], int argc) {
 		free(extern_symbol_table[i].control_section_name);
 
 		symbol_link = extern_symbol_table[i].extern_symbol;
-		
+
 		while (symbol_link) {
 			temp_symbol = symbol_link;
 			symbol_link = symbol_link->next;
@@ -509,50 +786,73 @@ void linking_loader_deallocate_ESTAB (ESTAB extern_symbol_table[], int argc) {
 	free(extern_symbol_table);
 }
 
-void bp_clear(struct bpLink ** bpLinkHead_ptr) {
-	struct bpLink * link = *bpLinkHead_ptr,
-				  * temp = NULL;
+void bp_clear(unsigned char break_point_addr[]) {
+	int i = 0;
 
-	while (link) {
-		temp = link;
-		link = link->next;
-
-		free(temp);
+	for (i = 0; i < MEMORY_SIZE; i++) {
+		break_point_addr[i] = 0;
 	}
-	*bpLinkHead_ptr = NULL;
 
 	printf("[ok] clear all breakpoints\n");
 }
 
-void bp_address(struct bpLink ** bpLinkHead_ptr, int addr) {
-	struct bpLink * link = *bpLinkHead_ptr,
-				  * new = NULL;
-
-	new = (struct bpLink *) calloc (1, sizeof(struct bpLink));
-	new->bpLineNum = addr;
-
-	if (link) {
-		while (link->bpLineNum < addr  && link->next) {
-			link = link->next;
-		}
-
-		// there is a node whose bpLineNum is equal to addr
-		if (link->bpLineNum == addr) {
-			free(new);
-		}
-		// link to head
-		else if (link->next) {
-			new->next = link->next;
-			link->next = new;
-		}
-		else { // link->next == NULL
-			link->next = new;
-		}
-	}
-	else { // bpLinkHead_ptr = NULL(= link)
-		*bpLinkHead_ptr = new;
-	}
+void bp_address(unsigned char break_point_addr[], int addr) {
+	break_point_addr[addr] = 1;
 
 	printf("[ok] create breakpoint %04X\n", addr);
+}
+
+int run_get_addr (int objcode, int opcode_format, struct RUN_PARAM * run_param_set) {
+	int disp = 0, addr = 0;
+	int x = 0, b = 0, p = 0;
+
+	if (opcode_format == 3) {
+		x = 0x008000;
+		b = 0x004000;
+		p = 0x002000;
+
+		disp = objcode & 0xFFF;
+		
+		if (p) {
+			addr = disp + run_param_set->reg[8];
+		}
+		else if (b) {
+			addr = disp + run_param_set->reg[3];
+		}
+
+		if (x) {
+			addr += run_param_set->reg[1];
+		}
+	}
+	else if (opcode_format == 4){
+		x = 0x00800000;
+		b = 0x00400000;
+		p = 0x00200000;
+
+		disp = objcode & 0xFFFF;
+		addr = disp;
+		if (x) {
+			addr += run_param_set->reg[1];
+		}
+	}
+
+	return addr;
+}
+
+void print_register_set (struct RUN_PARAM run_param_set) {
+	printf("\tA : %06X X : %06X\n", 
+			run_param_set.reg[0], 
+			run_param_set.reg[1]
+			);
+	printf("\tL : %06X PC : %06X\n", 
+			run_param_set.reg[2], 
+			run_param_set.reg[8]
+			);
+	printf("\tB : %06X S : %06X\n",
+			run_param_set.reg[3],
+			run_param_set.reg[4]
+			);
+	printf("\tT : %06X\n", run_param_set.reg[5]);
+	printf("End program.\n");
 }
 

@@ -5,6 +5,11 @@
 // TODO : 각 한 줄씩 printf할 것
 void command_help(void) {
 	printf("h[elp]\nd[ir]\nq[uit]\nhi[story]\ndu[mp] [start, end]\ne[dit] address, value\nf[ill] start, end, value\nreset\nopcode mnemonic\nopcodelist\nassemble filename\ntype filename\nsymbol\n");
+	printf("progaddr [address]\n");
+	printf("loader [object filename1] [object filename2] [...]\n");
+	printf("run\n");
+	printf("bp [address]\n");
+	printf("bp clear\n");
 }
 
 
@@ -1328,15 +1333,6 @@ void sortSYMTABandPrint() {
 		printf("\t%s\t%04X\n", array[i].symbol, array[i].LOCCTR);
 	}
 }
-
-void print_register_set(struct reg regSet) {
-	printf("\tA : %06X X : %06X\n", regSet.A, regSet.X);
-	printf("\tL : %06X PC : %06X\n", regSet.L, regSet.PC);
-	printf("\tB : %06X S : %06X\n", regSet.B, regSet.S);
-	printf("\tT : %06X\n", regSet.T);
-	printf("End program.\n");
-}
-
 
 /********************************/
 /* functions for error handling */

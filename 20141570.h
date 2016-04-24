@@ -146,7 +146,6 @@ char * fetch_filename_extension (const char * filename);
 
 void sortSYMTABandPrint();
 
-void print_register_set(struct reg regSet);
 
 // TODO : DELETE SYMBOL TABLE FUNCTION
 // TODO : DEALLOCATING sth FUNCTIONS 필요함!!
