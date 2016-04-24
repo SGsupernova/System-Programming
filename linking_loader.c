@@ -122,7 +122,6 @@ int command_run (struct RUN_PARAM* run_param_set, const unsigned char break_poin
 	int ni = 0, addr = 0, temp_int = 0, i;
 	int r1, r2;
 	int num_half_byte, indirect_addr = 0;
-	unsigned int L_stack[100] = {0,}, top = -1;
 
 	const int opcode_set[USE_NUM_OPCODE] = {
 		0xB4, 0x00, 0xB8, 0x0C, // CLEAR,	LDA,	TIXR,	STA
@@ -139,17 +138,18 @@ int command_run (struct RUN_PARAM* run_param_set, const unsigned char break_poin
 		3, 3, 3, 3
 	};
 
+	int loop = 1;
+
 	if (!(run_param_set->break_flag)) {
 		run_param_set->reg[2] = 0xFFFFFF;
 		run_param_set->reg[8] = current_addr = run_param_set->EXECADDR;
-		L_stack[++top] = 0xFFFFFF;
 	}
 
 	while (1) {
+
 		objcode = 0;
-//		printf("\n\n-------------------------------------------------------\n");
-//		printf("-------------------------------------------------------\n");
-		if (run_param_set->reg[2] == run_param_set->reg[2]) {
+		current_addr = run_param_set->reg[8];
+		if (run_param_set->reg[8] == 0xFFFFFF) {
 			print_register_set(*run_param_set);
 			return 0;
 		}
@@ -157,9 +157,9 @@ int command_run (struct RUN_PARAM* run_param_set, const unsigned char break_poin
 		if (break_point_addr[current_addr]) {
 			if (break_addr != current_addr) {
 				break_addr = current_addr;
-				run_param_set->break_flag = 0;
+				run_param_set->break_flag = 1;
 				print_register_set(*run_param_set);
-//				printf("Stop at checkpoint[%04X]\n", current_addr);
+				printf("Stop at checkpoint[%04X]\n", current_addr);
 				return 0;
 			}
 			else {
@@ -168,9 +168,10 @@ int command_run (struct RUN_PARAM* run_param_set, const unsigned char break_poin
 		}
 
 		// fetch1
-//		printf("memory[%06X] : %02X\n", current_addr, memory[current_addr]);
 		opcode = memory[current_addr] - memory[current_addr] % 4;
 		ni = memory[current_addr] % 4;
+
+//		printf("opcode : %02X\n", opcode);
 
 		opcode_flag = 0;
 		for (i = 0; i < 20; i++) {
@@ -181,7 +182,6 @@ int command_run (struct RUN_PARAM* run_param_set, const unsigned char break_poin
 			}
 		}
 
-//		printf("opcode : %04X\n", opcode);
 		if (!opcode_flag) { // invalid opcode
 			SEND_ERROR_MESSAGE("(command_run) invalid opcode");
 			return 1;
@@ -190,7 +190,6 @@ int command_run (struct RUN_PARAM* run_param_set, const unsigned char break_poin
 		// make objcode
 		objcode = memory[current_addr] * 0x100 + memory[current_addr + 1];
 
-//		printf("objcode : %04X\n", objcode);
 
 		if (opcode_format == 2) {
 			num_half_byte = 4;
@@ -210,7 +209,6 @@ int command_run (struct RUN_PARAM* run_param_set, const unsigned char break_poin
 		// increasing register PC
 		current_addr = run_param_set->reg[8] += opcode_format;
 
-//		printf("later objcode : %06X\n", objcode);
 
 		if (opcode_format == 3 || opcode_format == 4) {
 			addr = run_get_addr(objcode, opcode_format, run_param_set) + run_param_set->progaddr;
@@ -223,6 +221,7 @@ int command_run (struct RUN_PARAM* run_param_set, const unsigned char break_poin
 			}
 			/***************/
 		}
+//		printf("addr : %x\n", addr);
 
 		switch (opcode) {
 			// format 2
@@ -262,7 +261,9 @@ int command_run (struct RUN_PARAM* run_param_set, const unsigned char break_poin
 				}
 				break;
 			case 0xB8 : // TIXR
-				run_param_set->reg[1]++;
+				(run_param_set->reg[1])++;
+				r1 = objcode & 0x00F0;
+				r1 = r1 >> 4;
 
 				if (r1 < r2) {
 					run_param_set->reg[9] = -1;
@@ -323,6 +324,7 @@ int command_run (struct RUN_PARAM* run_param_set, const unsigned char break_poin
 
 			case 0x3C : // J
 				run_param_set->reg[8] = addr;
+				printf("run_param_set : %x\n", run_param_set->reg[8]);
 				break;
 			case 0x28 : // COMP
 				if (run_param_set->reg[0] < addr) {
@@ -346,23 +348,16 @@ int command_run (struct RUN_PARAM* run_param_set, const unsigned char break_poin
 				break;
 
 			case 0x48 : // JSUB
-				L_stack[++top] = current_addr;
 				run_param_set->reg[2] = run_param_set->reg[8];
-				current_addr = run_param_set->reg[8] = addr;
+				run_param_set->reg[8] = addr;
 				break;
 			case 0x4C : // RSUB
 				current_addr = run_param_set->reg[8] = run_param_set->reg[2];
-				run_param_set->reg[2] = L_stack[--top];
 				break;
 			default :
 				SEND_ERROR_MESSAGE("(run) opcode error");
 				break;
 		}
-/*
-		if (run_param_set->reg[8] == run_param_set->reg[2]) {
-			break;
-		}
-*/		
 //		run_param_set->reg[8] = current_addr;
 	}
 
@@ -813,8 +808,9 @@ void bp_address(unsigned char break_point_addr[], int addr) {
 	printf("[ok] create breakpoint %04X\n", addr);
 }
 
-int run_get_addr (int objcode, int opcode_format, struct RUN_PARAM * run_param_set) {
-	int disp = 0, addr = 0;
+int run_get_addr (unsigned int objcode, int opcode_format, struct RUN_PARAM * run_param_set) {
+	unsigned int disp = 0;
+	int addr = 0;
 	int x = 0, b = 0, p = 0;
 
 	if (opcode_format == 3) {
@@ -823,9 +819,16 @@ int run_get_addr (int objcode, int opcode_format, struct RUN_PARAM * run_param_s
 		p = objcode & 0x002000;
 
 		disp = objcode & 0xFFF;
+	
+//		printf("disp : %x\n",disp);
+
+		if (disp & 0x800) {
+			disp = disp | 0xFFFFF000;
+//			printf("0---------------after disp : %x, %d\n", (int)disp, (int)disp);
+		}
 
 		if (p) {
-			addr = disp + run_param_set->reg[8];
+			addr = (int)disp + run_param_set->reg[8];
 		}
 		else if (b) {
 			addr = disp + run_param_set->reg[3];

@@ -61,6 +61,6 @@ void bp_clear(unsigned char break_point_addr[]);
 void bp_address(unsigned char break_point_addr[], int addr);
 
 void print_register_set(struct RUN_PARAM run_param_set);
-int run_get_addr(int objcode, int opcode_format, struct RUN_PARAM * run_param_set);
+int run_get_addr(unsigned int objcode, int opcode_format, struct RUN_PARAM * run_param_set);
 
 #endif
