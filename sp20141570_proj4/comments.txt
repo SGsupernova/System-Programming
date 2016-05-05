@@ -1,0 +1,61 @@
+<h1>Nam si propter voluptatem, quae est ista laus, quae possit e macello peti?</h1>
+
+<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Et harum quidem rerum facilis est et expedita distinctio. <a href='comments.html' target='_blank'>Contineo me ab exemplis.</a> Theophrasti igitur, inquit, tibi liber ille placet de beata vita? Inde igitur, inquit, ordiendum est. Duo Reges: constructio interrete. De vacuitate doloris eadem sententia erit. </p>
+
+<h5>Quid ergo attinet gloriose loqui, nisi constanter loquare?</h5>
+
+<p><mark>Quare attende, quaeso.</mark> Nec vero alia sunt quaerenda contra Carneadeam illam sententiam. Nunc omni virtuti vitium contrario nomine opponitur. Sed quae tandem ista ratio est? Beatus autem esse in maximarum rerum timore nemo potest. <b>Non est igitur summum malum dolor.</b> An haec ab eo non dicuntur? <mark>Quid est igitur, inquit, quod requiras?</mark> </p>
+
+<ul>
+        <li>Quid autem habent admirationis, cum prope accesseris?</li>
+            <li>Prioris generis est docilitas, memoria;</li>
+                <li>Magno hic ingenio, sed res se tamen sic habet, ut nimis imperiosi philosophi sit vetare meminisse.</li>
+                    <li>Vulgo enim dicitur: Iucundi acti labores, nec male Euripidesconcludam, si potero, Latine;</li>
+                </ul>
+
+
+                <dl>
+                        <dt><dfn>Reguli reiciendam;</dfn></dt>
+                            <dd>Quae tamen a te agetur non melior, quam illae sunt, quas interdum optines.</dd>
+                                <dt><dfn>Respondeat totidem verbis.</dfn></dt>
+                                    <dd>Utram tandem linguam nescio?</dd>
+                                        <dt><dfn>Poterat autem inpune;</dfn></dt>
+                                            <dd>Sed ne, dum huic obsequor, vobis molestus sim.</dd>
+                                        </dl>
+
+
+                                        <blockquote cite='warning.html'>
+                                                Quam ob rem utique idem faciunt, ut si laevam partem neglegerent, dexteram tuerentur, aut ipsius animi, ut fecit Erillus, cognitionem amplexarentur, actionem relinquerent.
+                                            </blockquote>
+
+
+                                            <ol>
+                                                    <li>Deinde prima illa, quae in congressu solemus: Quid tu, inquit, huc?</li>
+                                                        <li>Illa argumenta propria videamus, cur omnia sint paria peccata.</li>
+                                                            <li>Si in ipso corpore multa voluptati praeponenda sunt, ut vires, valitudo, velocitas, pulchritudo, quid tandem in animis censes?</li>
+                                                                <li>Collige omnia, quae soletis: Praesidium amicorum.</li>
+                                                            </ol>
+
+
+                                                            <h2>Restinguet citius, si ardentem acceperit.</h2>
+
+                                                            <p>At miser, si in flagitiosa et vitiosa vita afflueret voluptatibus. <code>Sit sane ista voluptas.</code> Sed fortuna fortis; Quamquam te quidem video minime esse deterritum. </p>
+
+                                                            <h3>Illa argumenta propria videamus, cur omnia sint paria peccata.</h3>
+
+                                                            <p>Haec et tu ita posuisti, et verba vestra sunt. <b>Negare non possum.</b> Et harum quidem rerum facilis est et expedita distinctio. Ita relinquet duas, de quibus etiam atque etiam consideret. Incommoda autem et commoda-ita enim estmata et dustmata appello-communia esse voluerunt, paria noluerunt. Animum autem reliquis rebus ita perfecit, ut corpus; Superiores tres erant, quae esse possent, quarum est una sola defensa, eaque vehementer. </p>
+
+                                                            <h4>Istic sum, inquit.</h4>
+
+                                                            <p>Hic, qui utrumque probat, ambobus debuit uti, sicut facit re, neque tamen dividit verbis. <i>Sed nimis multa.</i> Nam et a te perfici istam disputationem volo, nec tua mihi oratio longa videri potest. Quis istum dolorem timet? </p>
+
+                                                            <pre>
+                                                            Incommoda autem et commoda-ita enim estmata et dustmata
+                                                            appello-communia esse voluerunt, paria noluerunt.
+
+                                                            Perturbationes autem nulla naturae vi commoventur, omniaque
+                                                            ea sunt opiniones ac iudicia levitatis.
+                                                            </pre>
+
+
+

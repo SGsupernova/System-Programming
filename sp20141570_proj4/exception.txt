@@ -1,0 +1,55 @@
+<html>
+    <body>
+        <p>
+            When I was younger I saw<br>
+            My daddy cry and curse at the wind<br>
+            He broke his own heart and I watched<br>
+            As he tried to reassemble it<br>
+            And my momma swore that she would<br>
+            Never let herself forget<br>
+            And that was the day that I promised<br>
+            I'd never sing of love if it does not exist<br>
+        </p>
+        <!--
+            But, darling, you are the only exception
+            Well, you are the only exception
+            Well, you are the only exception
+            Well, you are the only exception
+        -->
+        <p>
+            Maybe I know somewhere<br>
+            Deep in my soul that love never lasts<br>
+            And we've got to find other ways<br>
+            To make it alone or keep a straight face<br>
+            And I've always lived like this<br>
+            Keeping a comfortable distance<br>
+            And up until now I had sworn to myself that I'm content with loneliness<br>
+            Because none of it was ever worth the risk<br>
+        </p>
+        <!--
+            Well, you are the only exception
+            Well, you are the only exception
+            Well, you are the only exception
+            Well, you are the only exception
+        -->
+        <p>
+            I've got a tight grip on reality, but I can't<br>
+            Let go of what's in front of me here<br>
+            I know you're leaving in the morning when you wake up<br>
+            Leave me with some kind of proof it's not a dream, whoa<br>
+        </p>
+        <!--
+            You are the only exception
+            You are the only exception
+            You are the only exception
+            Well, you are the only exception
+
+            You are the only exception
+            Well, you are the only exception
+            You are the only exception
+            Well, you are the only exception
+            And I'm on my way to believing
+            Oh, and I'm on my way to believing
+        -->
+    </body>
+</html>

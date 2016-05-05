@@ -61,15 +61,16 @@ for link in results:
 
 		# make file name
 		end = urlString.find(".html")
-		urlFileName = urlString[name_len:end] + ".txt"
+		urlFileName = "Output_" + urlString[name_len:end] + ".txt"
 		
-
+		# write a text that was Crawled
 		outputFile = open(urlFileName, "w")
 		outputFile.write(req.text)
 
 		# check visiting page
 		visitedUrlList.append(urlString)
 
+		# add url at URL.txt
 		urlFile.write(urlString + "\n")
 
 		soup = BeautifulSoup(req.content, "html.parser")
@@ -77,14 +78,6 @@ for link in results:
 
 		# cancatenation (add link)
 		urlList = urlList + results
-
-		
-	#################
-
-#
-#	urlFile.write(urlString)
-#	
-#	print "string : ", string
 
 
 urlFile.close()

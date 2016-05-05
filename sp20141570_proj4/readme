@@ -1,0 +1,14 @@
+1. How to execute
+type
+$ python 20141570.py
+
+2. I use(import) "requests" and "BeautifulSoup4"
+
+
+
+3. This program	1) visits all hyperlink recursively
+				2) crawls the web site(http://cspro.sogang.ac.kr/~gr120160213/)
+				3) does not crawl the web site that does not exits(ex. 404 page) or is duplicated link
+
+4. Results of crawling visted pages are text file and
+	these format are Output_****.txt
