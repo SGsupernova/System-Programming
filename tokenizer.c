@@ -57,6 +57,7 @@ int tokenizer_delimiter_space (char *str, char *** res_argv) {
 				idx_temp = 0;
 
 				new_flag = 1;
+				argc ++;
 				token_process_flag = 0;
 			}
 
@@ -65,7 +66,6 @@ int tokenizer_delimiter_space (char *str, char *** res_argv) {
 		}
 		else {
 			if (new_flag) {
-				argc ++;
 				new_flag = 0;
 			}
 			temp_token[idx_temp ++] = str[i];
