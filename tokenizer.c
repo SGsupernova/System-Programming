@@ -18,6 +18,8 @@ int main () {
 	for (i = 0; i < argc; i++) {
 		printf("argv[%d] : %s\n", i, argv[i]);
 	}
+	
+	tokenizer_deallocate_argvs(&argv, argc);
 
 	return 0;
 }
@@ -136,7 +138,7 @@ int TokenizeOperand(const char * operandStr, char ** operand) {
 	sscanf(operandStr, "%[^ ,] , %[^ ,]", operand[0], operand[1]);
 }
 
-void tokenize_deallocate_argvs (char *** argv_ptr, int argc) {
+void tokenizer_deallocate_argvs (char *** argv_ptr, int argc) {
 	if (*argv_ptr && argc) {
 		int i = 0;
 
