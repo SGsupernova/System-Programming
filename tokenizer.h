@@ -15,6 +15,6 @@ void tokenizer_deallocate_token_link(struct token_link ** token_head);
 
 int TokenizeOperand(const char * operandStr, char ** operand);
 
-void tokenize_deallocate_argvs (char *** argv_ptr, int argc);
+void tokenizer_deallocate_argvs (char *** argv_ptr, int argc);
 
 #endif
